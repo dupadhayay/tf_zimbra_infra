@@ -95,7 +95,7 @@ rgs = {
     location            = "Central India"
 
   }
-   rg23= {
+   rg3= {
     resource_group_name = "rg_rondu"
     location            = "Central India"
 
