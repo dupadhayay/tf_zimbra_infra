@@ -1,0 +1,22 @@
+[
+ {
+  "RuleID": "hardcoded-password",
+  "Description": "Detect hardcoded passwords",
+  "StartLine": 60,
+  "EndLine": 60,
+  "StartColumn": 4,
+  "EndColumn": 91,
+  "Match": "admin_password                  = data.azurerm_key_vault_secret.password[each.key].value",
+  "Secret": "data.azurerm_key_vault_secret.password[each.key].value",
+  "File": "child_module/azurerm_virtual_machine/main.tf",
+  "SymlinkFile": "",
+  "Commit": "",
+  "Entropy": 4.1563225,
+  "Author": "",
+  "Email": "",
+  "Date": "",
+  "Message": "",
+  "Tags": [],
+  "Fingerprint": "child_module/azurerm_virtual_machine/main.tf:hardcoded-password:60"
+ }
+]

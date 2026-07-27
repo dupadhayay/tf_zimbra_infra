@@ -1,0 +1,50 @@
+{
+	"results": [
+		{
+			"rule_id": "AVD-AZU-0016",
+			"long_id": "azure-keyvault-no-purge",
+			"rule_description": "Key vault should have purge protection enabled",
+			"rule_provider": "azure",
+			"rule_service": "keyvault",
+			"impact": "Keys could be purged from the vault without protection",
+			"resolution": "Enable purge protection for key vaults",
+			"links": [
+				"https://aquasecurity.github.io/tfsec/v1.28.14/checks/azure/keyvault/no-purge/",
+				"https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault#purge_protection_enabled"
+			],
+			"description": "Vault does not have purge protection enabled.",
+			"severity": "MEDIUM",
+			"warning": false,
+			"status": 0,
+			"resource": "module.keyVault",
+			"location": {
+				"filename": "/Users/deepak.upadhayay/Downloads/MONOLITHIC_LANDING_ZONE/parent_module/child_module/azurerm_keyvalult/main.tf",
+				"start_line": 5,
+				"end_line": 33
+			}
+		},
+		{
+			"rule_id": "AVD-AZU-0013",
+			"long_id": "azure-keyvault-specify-network-acl",
+			"rule_description": "Key vault should have the network acl block specified",
+			"rule_provider": "azure",
+			"rule_service": "keyvault",
+			"impact": "Without a network ACL the key vault is freely accessible",
+			"resolution": "Set a network ACL for the key vault",
+			"links": [
+				"https://aquasecurity.github.io/tfsec/v1.28.14/checks/azure/keyvault/specify-network-acl/",
+				"https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault#network_acls"
+			],
+			"description": "Vault network ACL does not block access by default.",
+			"severity": "CRITICAL",
+			"warning": false,
+			"status": 0,
+			"resource": "module.keyVault",
+			"location": {
+				"filename": "/Users/deepak.upadhayay/Downloads/MONOLITHIC_LANDING_ZONE/parent_module/child_module/azurerm_keyvalult/main.tf",
+				"start_line": 5,
+				"end_line": 33
+			}
+		}
+	]
+}
