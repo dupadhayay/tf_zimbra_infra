@@ -9,6 +9,11 @@ vnets = {
     address_space       = ["10.1.0.0/16"]
     resource_group_name = "rg_dhundu"
   }
+   vn3 = {
+    name                = "DB-vnet"
+    address_space       = ["10.2.0.0/16"]
+    resource_group_name = "rg_rondu"
+  }
 }
 
 
@@ -67,6 +72,33 @@ vms = {
 
 
   }
+  VM3 = {
+    name                = "nic_card3"
+    resource_group_name = "rg_rondu"
+    vnet_name           = "DB-vnet"
+    subnet_name         = "DB-subnet"
+    ip_configuration = {
+      name                          = "internal"
+      private_ip_address_allocation = "Dynamic"
+    }
+    vmname               = "adminvm1"
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+
+    publisher = "Canonical"
+    offer     = "ubuntu-24_04-lts"
+    sku       = "server"
+    version   = "latest"
+
+    size = "Standard_D2s_v3"
+    admin_username = "adminusername"
+    admin_password_secret_name = "adminpassword"
+    disable_password_authentication = false
+    pipname                         = "public-ip3"
+    keyvaultname                    = "KeyvaultVMPassword"
+
+
+  }
 }
 
 subnets = {
@@ -82,6 +114,12 @@ subnets = {
     virtual_network_name = "backend-vnet"
     address_prefixes     = ["10.1.1.0/24"]
     name                 = "backend-subnet"
+  }
+   subnet3 = {
+    resource_group_name  = "rg_rondu"
+    virtual_network_name = "DB-vnet"
+    address_prefixes     = ["10.2.1.0/24"]
+    name                 = "DB-subnet"
   }
 }
 
@@ -112,6 +150,13 @@ publicIPs = {
   PublicIP2 = {
     name                = "public-ip2"
     resource_group_name = "rg_dhundu"
+    location            = "Central India"
+    allocation_method   = "Static"
+
+  }
+    PublicIP3 = {
+    name                = "public-ip3"
+    resource_group_name = "rg_rondu"
     location            = "Central India"
     allocation_method   = "Static"
 
