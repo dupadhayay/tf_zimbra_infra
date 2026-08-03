@@ -111,9 +111,9 @@ jobs:
 
 
       - name: terraform init
-        working-directory: terraform
+        working-directory: parent_module
         run: terraform init
 
       - name: terraform plan
-        working-directory: terraform
+        working-directory: parent_module
         run: terraform plan
