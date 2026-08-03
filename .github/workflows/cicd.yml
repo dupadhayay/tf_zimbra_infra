@@ -89,9 +89,9 @@ jobs:
 # Stage 2: Terraform Job
 # ==========================
 
-  terraform:
+  plan:
 
-    name: Terraform Pipeline
+    name: Terraform plan
 
     runs-on: ubuntu-latest
 
@@ -118,6 +118,34 @@ jobs:
         working-directory: parent_module
         run: terraform init
 
-      - name: terraform plan
-        working-directory: parent_module
-        run: terraform plan
+      # - name: terraform plan
+      #   working-directory: parent_module
+      #   run: terraform plan
+
+
+  apply: 
+
+    needs: plan
+
+    runs-on: ubuntu-latest
+
+    environment:
+      name: production
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - working-directory: parent_module
+        run: terraform init
+
+      - working-directory: parent_module
+        run: terraform apply -auto-approve
