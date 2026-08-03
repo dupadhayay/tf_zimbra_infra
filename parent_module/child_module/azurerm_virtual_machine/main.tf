@@ -73,4 +73,22 @@ resource "azurerm_linux_virtual_machine" "VMLinux" {
     sku       = each.value.sku
     version   = each.value.version
   }
+
+  #  provisioner "remote-exec" {
+
+  #   inline = [
+  #     "sudo apt update",
+  #     "sudo apt install -y nginx",
+  #     "sudo systemctl enable nginx",
+  #     "sudo systemctl start nginx"
+  #   ]
+
+  #   connection {
+  #     type     = "ssh"
+  #     host     = self.public_ip_address
+  #     user     = data.azurerm_key_vault_secret.secretValue[each.key].value
+  #     password = data.azurerm_key_vault_secret.password[each.key].value
+  #     timeout  = "5m"
+  #   }
+  # }
 }
