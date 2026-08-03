@@ -111,7 +111,9 @@ jobs:
 
 
       - name: terraform init
+        working-directory: terraform
         run: terraform init
 
       - name: terraform plan
+        working-directory: terraform
         run: terraform plan
