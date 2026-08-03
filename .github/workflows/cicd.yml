@@ -1,0 +1,152 @@
+name: Terraform CI
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - feature/*
+
+  pull_request:
+    branches:
+      - main
+      
+
+jobs:
+
+  security-scan:
+
+    name: Terraform Security Scan
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - run: terraform version
+      - run: terraform fmt
+      - run: terraform validate
+
+
+      # Gitleaks Secret Scan
+      - name: Install Gitleaks
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gitleaks
+
+
+      - name: Run Gitleaks
+        run: |
+          gitleaks detect \
+          --source . \
+          --exit-code 1
+
+
+
+      # TruffleHog Secret Scan
+      - name: Install TruffleHog
+        run: |
+              curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+
+
+      - name: Run TruffleHog
+        run: |
+          trufflehog filesystem . --json > trufflehog-report.json
+
+
+
+      # TFLint
+      - name: Install TFLint
+        run: |
+          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+
+
+      - name: Run TFLint
+        run: |
+          tflint --init
+          tflint
+
+
+
+      # tfsec
+      - name: Install tfsec
+        run: |
+             curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+
+
+      - name: Run tfsec
+        run: |
+          tfsec .
+
+# ==========================
+# Stage 2: Terraform Job
+# ==========================
+
+  plan:
+
+    name: Terraform plan
+
+    runs-on: ubuntu-latest
+
+    needs: security-scan   # Scan pass hone ke baad hi chalega
+
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+
+      - name: terraform init
+        working-directory: parent_module
+        run: terraform init
+
+      # - name: terraform plan
+      #   working-directory: parent_module
+      #   run: terraform plan
+
+
+  apply: 
+
+    needs: plan
+
+    runs-on: ubuntu-latest
+
+    environment:
+      name: production
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - working-directory: parent_module
+        run: terraform init
+
+      - working-directory: parent_module
+        run: terraform apply -auto-approve
