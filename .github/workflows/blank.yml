@@ -2,7 +2,6 @@ name: Terraform CI
 
 on:
   workflow_dispatch:
-  
 
   push:
     branches:
@@ -13,19 +12,95 @@ on:
       - main
 
 jobs:
-  terraform:
+
+  security-scan:
+
+    name: Terraform Security Scan
+
     runs-on: ubuntu-latest
+
+
     steps:
-    
+
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - run: terraform version
+
+
+      # Gitleaks Secret Scan
+      - name: Install Gitleaks
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gitleaks
+
+
+      - name: Run Gitleaks
+        run: |
+          gitleaks detect \
+          --source . \
+          --exit-code 1
+
+
+
+      # TruffleHog Secret Scan
+      - name: Install TruffleHog
+        run: |
+          pip install trufflehog
+
+
+      - name: Run TruffleHog
+        run: |
+          trufflehog filesystem .
+
+
+
+      # TFLint
+      - name: Install TFLint
+        run: |
+          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+
+
+      - name: Run TFLint
+        run: |
+          tflint --init
+          tflint
+
+
+
+      # tfsec
+      - name: Install tfsec
+        run: |
+          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+
+
+      - name: Run tfsec
+        run: |
+          tfsec .
+          
+# ==========================
+# Stage 2: Terraform Job
+# ==========================
+
+  terraform:
+
+    name: Terraform Pipeline
+
+    runs-on: ubuntu-latest
+
+    needs: security-scan   # Scan pass hone ke baad hi chalega
+
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+
       - name: Hello
         run: echo "Pipeline is running"
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.15.8
-
-      - name: Check Terraform Version
-        run: terraform version
