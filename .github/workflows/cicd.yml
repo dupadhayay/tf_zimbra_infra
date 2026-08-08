@@ -1,16 +1,17 @@
-name: Terraform CI
+name: Terraform CICD
 
 on:
   workflow_dispatch:
 
   push:
     branches:
+      - main
       - feature/*
 
   pull_request:
     branches:
       - main
-      
+
 
 jobs:
 
@@ -115,18 +116,21 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
 
-      - name: terraform init
-        working-directory: parent_module
-        run: terraform init
+      # - name: terraform init
+      #   working-directory: parent_module
+      #   run: terraform init
 
       # - name: terraform plan
       #   working-directory: parent_module
       #   run: terraform plan
 
 
-  apply: 
+  apply:
+    name : Terraform Apply 
 
     needs: plan
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     runs-on: ubuntu-latest
 
