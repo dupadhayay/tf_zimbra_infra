@@ -2,34 +2,37 @@ module "resource" {
   source = "./child_module/azurerm_resource"
   rg     = var.rgs
 }
-
-module "keyVault" {
-  depends_on = [module.resource]
-  source     = "./child_module/azurerm_keyvalult"
-  keyvault   = var.keyvault
+output "rg_names" {
+  value = module.resource.resource_group_names
 }
 
-module "public_ip" {
-  depends_on = [module.resource]
-  source     = "./child_module/azurerm_public_ip"
-  publicIP   = var.publicIPs
-}
+# module "keyVault" {
+#   depends_on = [module.resource]
+#   source     = "./child_module/azurerm_keyvalult"
+#   keyvault   = var.keyvault
+# }
 
-module "vnet" {
-  depends_on = [module.resource]
-  source     = "./child_module/azurerm_virtual_network"
-  dataVnet   = var.vnets
-}
+# module "public_ip" {
+#   depends_on = [module.resource]
+#   source     = "./child_module/azurerm_public_ip"
+#   publicIP   = var.publicIPs
+# }
 
-module "subnet" {
-  depends_on  = [module.vnet, module.resource]
-  source      = "./child_module/azurerm_subnet"
-  subnetsData = var.subnets
-}
+# module "vnet" {
+#   depends_on = [module.resource]
+#   source     = "./child_module/azurerm_virtual_network"
+#   dataVnet   = var.vnets
+# }
 
-module "VM" {
-  depends_on = [module.resource, module.public_ip, module.subnet, module.vnet,module.keyVault]
+# module "subnet" {
+#   depends_on  = [module.vnet, module.resource]
+#   source      = "./child_module/azurerm_subnet"
+#   subnetsData = var.subnets
+# }
 
-  source = "./child_module/azurerm_virtual_machine"
-  VM     = var.vms
-}
+# module "VM" {
+#   depends_on = [module.resource, module.public_ip, module.subnet, module.vnet,module.keyVault]
+
+#   source = "./child_module/azurerm_virtual_machine"
+#   VM     = var.vms
+# }
