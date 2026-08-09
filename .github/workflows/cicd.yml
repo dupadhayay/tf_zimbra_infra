@@ -6,11 +6,10 @@ on:
   push:
     branches:
       - main
-      - feature/*
 
   pull_request:
     branches:
-      - main
+      - feature/*
 
 
 jobs:
@@ -154,3 +153,8 @@ jobs:
 
       - working-directory: parent_module
         run: terraform apply -auto-approve
+
+      - working-directory: parent_module
+        run: terraform destroy
+
+        
