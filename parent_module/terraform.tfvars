@@ -138,6 +138,11 @@ rgs = {
     location            = "Central India"
 
   }
+    rg4= {
+    resource_group_name = "rg_rondu"
+    location            = "Central India"
+
+  }
 }
 
 publicIPs = {

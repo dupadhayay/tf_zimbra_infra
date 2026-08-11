@@ -7,6 +7,7 @@ on:
     branches:
       - main
 
+
   pull_request:
     branches:
       - main
@@ -124,7 +125,7 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.15.8
-
+      - name: Azure Login
       - uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
