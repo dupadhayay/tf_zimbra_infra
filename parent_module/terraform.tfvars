@@ -17,7 +17,7 @@ vnets = {
 }
 
 
-vms = {
+VM = {
   VM1 = {
     name                = "nic_card1"
     resource_group_name = "rg_deepak"
@@ -101,7 +101,7 @@ vms = {
   }
 }
 
-subnets = {
+subnetsData = {
   subnet1 = {
     resource_group_name  = "rg_deepak"
     virtual_network_name = "frontend-vnet"
@@ -123,7 +123,7 @@ subnets = {
   }
 }
 
-rgs = {
+rg = {
   rg1 = {
     resource_group_name = "rg_deepak"
     location            = "Central India"
@@ -145,7 +145,7 @@ rgs = {
   }
 }
 
-publicIPs = {
+publicIP = {
   publicIP1 = {
     name                = "public-ip1"
     resource_group_name = "rg_deepak"
@@ -168,12 +168,12 @@ publicIPs = {
   }
 }
 
-keyvault = {
-  name                       = "KeyvaultVMPassword"
-  location                   = "Central India"
-  resource_group_name        = "rg_deepak"
-  rbac_authorization_enabled = false
-  sku_name                   = "premium"
-  soft_delete_retention_days = 7
+# keyvault = {
+#   name                       = "KeyvaultVMPassword"
+#   location                   = "Central India"
+#   resource_group_name        = "rg_deepak"
+#   rbac_authorization_enabled = false
+#   sku_name                   = "premium"
+#   soft_delete_retention_days = 7
 
-}
+# }

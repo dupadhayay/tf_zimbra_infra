@@ -1,6 +1,6 @@
 module "resource" {
   source = "./child_module/azurerm_resource"
-  rg     = var.rgs
+  rg     = var.rg
 }
 output "rg_names" {
   value = module.resource.resource_group_names
@@ -15,19 +15,19 @@ output "rg_names" {
 module "public_ip" {
   depends_on = [module.resource]
   source     = "./child_module/azurerm_public_ip"
-  publicIP   = var.publicIPs
+  publicIP   = var.publicIP
 }
 
 module "vnet" {
   depends_on = [module.resource]
   source     = "./child_module/azurerm_virtual_network"
-  dataVnet   = var.vnets
+  vnets    = var.vnets
 }
 
 module "subnet" {
   depends_on  = [module.vnet, module.resource]
   source      = "./child_module/azurerm_subnet"
-  subnetsData = var.subnets
+  subnetsData = var.subnetsData
 }
 
 # module "VM" {

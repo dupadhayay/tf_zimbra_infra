@@ -1,6 +1,6 @@
-variable "rgs" {}
-variable "publicIPs" {}
+variable "rg" {}
+variable "publicIP" {}
 variable "vnets" {}
-variable "subnets" {}
-variable "vms" {}
-variable "keyvault" {}
+variable "subnetsData" {}
+variable "VM" {}
+# variable "keyvault" {}
