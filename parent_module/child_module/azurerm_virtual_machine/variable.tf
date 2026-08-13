@@ -6,13 +6,13 @@ variable "VM" {
     vnet_name   = string
     subnet_name = string
 
-   ip_configuration = object({
+    ip_configuration = object({
       name                          = string
       private_ip_address_allocation = string
     })
     size                            = string
     admin_username                  = string
-   admin_password_secret_name                  = string
+    admin_password_secret_name      = string
     disable_password_authentication = bool
     caching                         = string
     storage_account_type            = string

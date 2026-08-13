@@ -3,7 +3,7 @@ data "azurerm_client_config" "config" {
 
 
 resource "azurerm_key_vault" "keyVault" {
-  
+
   name                       = var.keyvault.name
   location                   = var.keyvault.location
   resource_group_name        = var.keyvault.resource_group_name
@@ -11,7 +11,7 @@ resource "azurerm_key_vault" "keyVault" {
   tenant_id                  = data.azurerm_client_config.config.tenant_id
   sku_name                   = var.keyvault.sku_name
   soft_delete_retention_days = var.keyvault.soft_delete_retention_days
-   purge_protection_enabled = true
+  purge_protection_enabled   = true
 
   access_policy {
     tenant_id = data.azurerm_client_config.config.tenant_id
@@ -31,7 +31,7 @@ resource "azurerm_key_vault" "keyVault" {
       "List"
     ]
   }
-   network_acls {
+  network_acls {
 
     default_action = "Deny"
 

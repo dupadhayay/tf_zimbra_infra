@@ -1,6 +1,6 @@
 data "azurerm_resource_group" "resourceData" {
   for_each = var.dataVnet
-  name = each.value.resource_group_name 
+  name     = each.value.resource_group_name
 }
 
 

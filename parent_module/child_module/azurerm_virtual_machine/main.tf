@@ -16,13 +16,13 @@ data "azurerm_key_vault" "keyvaultDatas" {
 }
 
 data "azurerm_key_vault_secret" "secretValue" {
-  for_each = var.VM
+  for_each     = var.VM
   name         = each.value.admin_username
   key_vault_id = data.azurerm_key_vault.keyvaultDatas.id
 }
 
 data "azurerm_key_vault_secret" "password" {
-  for_each = var.VM
+  for_each     = var.VM
   name         = each.value.admin_password_secret_name
   key_vault_id = data.azurerm_key_vault.keyvaultDatas.id
 }
@@ -34,17 +34,17 @@ resource "azurerm_network_interface" "NIC" {
   name                = each.value.name
   location            = data.azurerm_resource_group.resourceData[each.key].location
   resource_group_name = data.azurerm_resource_group.resourceData[each.key].name
-  
+
 
   ip_configuration {
     name                          = each.value.ip_configuration.name
     subnet_id                     = data.azurerm_subnet.subnetData[each.key].id
     private_ip_address_allocation = each.value.ip_configuration.private_ip_address_allocation
-    public_ip_address_id = data.azurerm_public_ip.publicIp[each.key].id
+    public_ip_address_id          = data.azurerm_public_ip.publicIp[each.key].id
   }
 }
 data "azurerm_public_ip" "publicIp" {
-  for_each             = var.VM
+  for_each            = var.VM
   name                = each.value.pipname
   resource_group_name = each.value.resource_group_name
 }
