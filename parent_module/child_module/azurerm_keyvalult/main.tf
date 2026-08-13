@@ -1,44 +1,44 @@
-data "azurerm_client_config" "config" {
-}
+# data "azurerm_client_config" "config" {
+# }
 
 
-resource "azurerm_key_vault" "keyVault" {
+# resource "azurerm_key_vault" "keyVault" {
 
-  name                       = var.keyvault.name
-  location                   = var.keyvault.location
-  resource_group_name        = var.keyvault.resource_group_name
-  rbac_authorization_enabled = var.keyvault.rbac_authorization_enabled
-  tenant_id                  = data.azurerm_client_config.config.tenant_id
-  sku_name                   = var.keyvault.sku_name
-  soft_delete_retention_days = var.keyvault.soft_delete_retention_days
-  purge_protection_enabled   = true
+#   name                       = var.keyvault.name
+#   location                   = var.keyvault.location
+#   resource_group_name        = var.keyvault.resource_group_name
+#   rbac_authorization_enabled = var.keyvault.rbac_authorization_enabled
+#   tenant_id                  = data.azurerm_client_config.config.tenant_id
+#   sku_name                   = var.keyvault.sku_name
+#   soft_delete_retention_days = var.keyvault.soft_delete_retention_days
+#   purge_protection_enabled   = true
 
-  access_policy {
-    tenant_id = data.azurerm_client_config.config.tenant_id
-    object_id = data.azurerm_client_config.config.object_id
+#   access_policy {
+#     tenant_id = data.azurerm_client_config.config.tenant_id
+#     object_id = data.azurerm_client_config.config.object_id
 
-    key_permissions = [
-      "Create",
-      "Get",
-    ]
+#     key_permissions = [
+#       "Create",
+#       "Get",
+#     ]
 
-    secret_permissions = [
-      "Set",
-      "Get",
-      "Delete",
-      "Purge",
-      "Recover",
-      "List"
-    ]
-  }
-  network_acls {
+#     secret_permissions = [
+#       "Set",
+#       "Get",
+#       "Delete",
+#       "Purge",
+#       "Recover",
+#       "List"
+#     ]
+#   }
+#   network_acls {
 
-    default_action = "Deny"
+#     default_action = "Deny"
 
-    bypass = "AzureServices"
+#     bypass = "AzureServices"
 
-  }
-}
+#   }
+# }
 
 # data "azurerm_key_vault" "keyvaultData" {
 #   name                = var.keyvault.name
