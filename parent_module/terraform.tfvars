@@ -17,89 +17,89 @@ vnets = {
 }
 
 
-VM = {
-  VM1 = {
-    name                = "nic_card1"
-    resource_group_name = "rg_deepak"
-    vnet_name           = "frontend-vnet"
-    subnet_name         = "frontend-subnet"
-    ip_configuration = {
-      name                          = "internal"
-      private_ip_address_allocation = "Dynamic"
-    }
-    vmname                          = "adminvm2"
-    caching                         = "ReadWrite"
-    storage_account_type            = "Standard_LRS"
-    publisher                       = "Canonical"
-    offer                           = "ubuntu-24_04-lts"
-    sku                             = "server"
-    version                         = "latest"
-    disable_password_authentication = false
+# VM = {
+#   VM1 = {
+#     name                = "nic_card1"
+#     resource_group_name = "rg_deepak"
+#     vnet_name           = "frontend-vnet"
+#     subnet_name         = "frontend-subnet"
+#     ip_configuration = {
+#       name                          = "internal"
+#       private_ip_address_allocation = "Dynamic"
+#     }
+#     vmname                          = "adminvm2"
+#     caching                         = "ReadWrite"
+#     storage_account_type            = "Standard_LRS"
+#     publisher                       = "Canonical"
+#     offer                           = "ubuntu-24_04-lts"
+#     sku                             = "server"
+#     version                         = "latest"
+#     disable_password_authentication = false
 
-    size                       = "Standard_D2s_v3"
-    admin_username             = "adminusername"
-    admin_password_secret_name = "adminpassword"
-    pipname                    = "public-ip1"
-    keyvaultname               = "KeyvaultVMPassword"
-
-
-
-  }
-  VM2 = {
-    name                = "nic_card2"
-    resource_group_name = "rg_dhundu"
-    vnet_name           = "backend-vnet"
-    subnet_name         = "backend-subnet"
-    ip_configuration = {
-      name                          = "internal"
-      private_ip_address_allocation = "Dynamic"
-    }
-    vmname               = "adminvm1"
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-
-    publisher = "Canonical"
-    offer     = "ubuntu-24_04-lts"
-    sku       = "server"
-    version   = "latest"
-
-    size                            = "Standard_D2s_v3"
-    admin_username                  = "adminusername"
-    admin_password_secret_name      = "adminpassword"
-    disable_password_authentication = false
-    pipname                         = "public-ip2"
-    keyvaultname                    = "KeyvaultVMPassword"
+#     size                       = "Standard_D2s_v3"
+#     admin_username             = "adminusername"
+#     admin_password_secret_name = "adminpassword"
+#     pipname                    = "public-ip1"
+#     keyvaultname               = "KeyvaultVMPassword"
 
 
-  }
-  VM3 = {
-    name                = "nic_card3"
-    resource_group_name = "rg_rondu"
-    vnet_name           = "DB-vnet"
-    subnet_name         = "DB-subnet"
-    ip_configuration = {
-      name                          = "internal"
-      private_ip_address_allocation = "Dynamic"
-    }
-    vmname               = "adminvm1"
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
 
-    publisher = "Canonical"
-    offer     = "ubuntu-24_04-lts"
-    sku       = "server"
-    version   = "latest"
+#   }
+#   VM2 = {
+#     name                = "nic_card2"
+#     resource_group_name = "rg_dhundu"
+#     vnet_name           = "backend-vnet"
+#     subnet_name         = "backend-subnet"
+#     ip_configuration = {
+#       name                          = "internal"
+#       private_ip_address_allocation = "Dynamic"
+#     }
+#     vmname               = "adminvm1"
+#     caching              = "ReadWrite"
+#     storage_account_type = "Standard_LRS"
 
-    size                            = "Standard_D2s_v3"
-    admin_username                  = "adminusername"
-    admin_password_secret_name      = "adminpassword"
-    disable_password_authentication = false
-    pipname                         = "public-ip3"
-    keyvaultname                    = "KeyvaultVMPassword"
+#     publisher = "Canonical"
+#     offer     = "ubuntu-24_04-lts"
+#     sku       = "server"
+#     version   = "latest"
+
+#     size                            = "Standard_D2s_v3"
+#     admin_username                  = "adminusername"
+#     admin_password_secret_name      = "adminpassword"
+#     disable_password_authentication = false
+#     pipname                         = "public-ip2"
+#     keyvaultname                    = "KeyvaultVMPassword"
 
 
-  }
-}
+#   }
+#   VM3 = {
+#     name                = "nic_card3"
+#     resource_group_name = "rg_rondu"
+#     vnet_name           = "DB-vnet"
+#     subnet_name         = "DB-subnet"
+#     ip_configuration = {
+#       name                          = "internal"
+#       private_ip_address_allocation = "Dynamic"
+#     }
+#     vmname               = "adminvm1"
+#     caching              = "ReadWrite"
+#     storage_account_type = "Standard_LRS"
+
+#     publisher = "Canonical"
+#     offer     = "ubuntu-24_04-lts"
+#     sku       = "server"
+#     version   = "latest"
+
+#     size                            = "Standard_D2s_v3"
+#     admin_username                  = "adminusername"
+#     admin_password_secret_name      = "adminpassword"
+#     disable_password_authentication = false
+#     pipname                         = "public-ip3"
+#     keyvaultname                    = "KeyvaultVMPassword"
+
+
+#   }
+# }
 
 subnetsData = {
   subnet1 = {
