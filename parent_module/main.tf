@@ -31,7 +31,7 @@ module "subnet" {
 }
 
 module "VM" {
-  depends_on = [module.resource, module.public_ip, module.subnet, module.vnet,module.keyVault]
+  depends_on = [module.resource, module.public_ip, module.subnet, module.vnet, module.keyVault]
 
   source = "./child_module/azurerm_virtual_machine"
   VM     = var.vms

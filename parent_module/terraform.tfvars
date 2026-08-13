@@ -9,7 +9,7 @@ vnets = {
     address_space       = ["10.1.0.0/16"]
     resource_group_name = "rg_dhundu"
   }
-   vn3 = {
+  vn3 = {
     name                = "DB-vnet"
     address_space       = ["10.2.0.0/16"]
     resource_group_name = "rg_rondu"
@@ -36,11 +36,11 @@ vms = {
     version                         = "latest"
     disable_password_authentication = false
 
-    size = "Standard_D2s_v3"
-    admin_username = "adminusername"
+    size                       = "Standard_D2s_v3"
+    admin_username             = "adminusername"
     admin_password_secret_name = "adminpassword"
-    pipname      = "public-ip1"
-    keyvaultname = "KeyvaultVMPassword"
+    pipname                    = "public-ip1"
+    keyvaultname               = "KeyvaultVMPassword"
 
 
 
@@ -63,9 +63,9 @@ vms = {
     sku       = "server"
     version   = "latest"
 
-    size = "Standard_D2s_v3"
-    admin_username = "adminusername"
-    admin_password_secret_name = "adminpassword"
+    size                            = "Standard_D2s_v3"
+    admin_username                  = "adminusername"
+    admin_password_secret_name      = "adminpassword"
     disable_password_authentication = false
     pipname                         = "public-ip2"
     keyvaultname                    = "KeyvaultVMPassword"
@@ -90,9 +90,9 @@ vms = {
     sku       = "server"
     version   = "latest"
 
-    size = "Standard_D2s_v3"
-    admin_username = "adminusername"
-    admin_password_secret_name = "adminpassword"
+    size                            = "Standard_D2s_v3"
+    admin_username                  = "adminusername"
+    admin_password_secret_name      = "adminpassword"
     disable_password_authentication = false
     pipname                         = "public-ip3"
     keyvaultname                    = "KeyvaultVMPassword"
@@ -115,7 +115,7 @@ subnets = {
     address_prefixes     = ["10.1.1.0/24"]
     name                 = "backend-subnet"
   }
-   subnet3 = {
+  subnet3 = {
     resource_group_name  = "rg_rondu"
     virtual_network_name = "DB-vnet"
     address_prefixes     = ["10.2.1.0/24"]
@@ -133,12 +133,12 @@ rgs = {
     location            = "Central India"
 
   }
-   rg3= {
+  rg3 = {
     resource_group_name = "rg_rondu"
     location            = "Central India"
 
   }
-    rg4= {
+  rg4 = {
     resource_group_name = "rg_rondu"
     location            = "Central India"
 
@@ -159,7 +159,7 @@ publicIPs = {
     allocation_method   = "Static"
 
   }
-    PublicIP3 = {
+  PublicIP3 = {
     name                = "public-ip3"
     resource_group_name = "rg_rondu"
     location            = "Central India"
@@ -175,5 +175,5 @@ keyvault = {
   rbac_authorization_enabled = false
   sku_name                   = "premium"
   soft_delete_retention_days = 7
-   
+
 }
