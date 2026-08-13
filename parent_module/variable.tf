@@ -10,7 +10,7 @@ variable "vnets" {
 variable "subnetsData" {
   type = any
 }
-variable "VM" {
-  type = any
-}
+# variable "VM" {
+#   type = any
+# }
 # variable "keyvault" {}
