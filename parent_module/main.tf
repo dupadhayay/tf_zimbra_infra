@@ -21,7 +21,7 @@ module "public_ip" {
 module "vnet" {
   depends_on = [module.resource]
   source     = "./child_module/azurerm_virtual_network"
-  vnets    = var.vnets
+  vnets      = var.vnets
 }
 
 module "subnet" {
