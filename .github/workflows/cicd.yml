@@ -1,4 +1,4 @@
-name: Terraform CICD
+name: Terraform AI Security Review
 
 on:
   workflow_dispatch:
@@ -7,91 +7,155 @@ on:
     branches:
       - main
 
-
   pull_request:
     branches:
       - main
 
+
 permissions:
   id-token: write
   contents: read
+  pull-requests: write
+
+
+# ============================================================
+# Stage 1 - Security Scan
+# ============================================================
 
 jobs:
+
   security-scan:
+
     name: Terraform Security Scan
 
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - uses: hashicorp/setup-terraform@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.15.8
+          terraform_version: "1.15.8"
 
-      - run: terraform version
-      - run: terraform fmt
-      - run: terraform validate
 
-      # Gitleaks Secret Scan
+      - name: Terraform Version
+        run: terraform version
+
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+
+      - name: Terraform Init
+        working-directory: parent_module
+        run: terraform init
+
+
+      - name: Terraform Validate
+        working-directory: parent_module
+        run: terraform validate
+
+
+      # ======================================================
+      # Gitleaks
+      # ======================================================
+
       - name: Install Gitleaks
         run: |
           sudo apt-get update
           sudo apt-get install -y gitleaks
 
+
       - name: Run Gitleaks
         run: |
           gitleaks detect \
-          --source . \
-          --exit-code 1
+            --source . \
+            --exit-code 1
 
-      # TruffleHog Secret Scan
+
+      # ======================================================
+      # TruffleHog
+      # ======================================================
+
       - name: Install TruffleHog
         run: |
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+          curl -sSfL \
+          https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \
+          | sh -s -- -b /usr/local/bin
+
 
       - name: Run TruffleHog
         run: |
           trufflehog filesystem . --json > trufflehog-report.json
 
+
+      # ======================================================
       # TFLint
+      # ======================================================
+
       - name: Install TFLint
         run: |
-          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+          curl -s \
+          https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh \
+          | bash
+
 
       - name: Run TFLint
+        working-directory: parent_module
         run: |
           tflint --init
           tflint
 
+
+      # ======================================================
       # tfsec
+      # ======================================================
+
       - name: Install tfsec
         run: |
-          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+          curl -s \
+          https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh \
+          | bash
+
 
       - name: Run tfsec
+        working-directory: parent_module
         run: |
           tfsec .
 
-  # ==========================
-  # Stage 2: Terraform Job
-  # ==========================
+
+  # ==========================================================
+  # Stage 2 - Terraform Plan
+  # ==========================================================
 
   plan:
-    name: Terraform plan
+
+    name: Terraform Plan
 
     runs-on: ubuntu-latest
 
-    needs: security-scan # Scan pass hone ke baad hi chalega
+    needs: security-scan
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - uses: hashicorp/setup-terraform@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.15.8
+          terraform_version: "1.15.8"
+
+
+      # ------------------------------------------------------
+      # Azure Login
+      # ------------------------------------------------------
+
       - name: Azure Login
         uses: azure/login@v2
         with:
@@ -99,47 +163,441 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: terraform init
-        working-directory: parent_module
-        run: terraform init
 
-      - name: terraform plan
+      - name: Terraform Init
         working-directory: parent_module
-        run: terraform plan
+        run: |
+          terraform init
 
-  apply:
-    name: Terraform Apply
+
+      # ------------------------------------------------------
+      # Terraform Plan
+      # ------------------------------------------------------
+
+      - name: Terraform Plan
+        working-directory: parent_module
+        run: |
+          terraform plan -out=tfplan
+
+
+      # ------------------------------------------------------
+      # Convert Plan to JSON
+      # ------------------------------------------------------
+
+      - name: Terraform Show JSON
+        working-directory: parent_module
+        run: |
+          terraform show -json tfplan > tfplan.json
+
+
+      # ------------------------------------------------------
+      # Upload Plan
+      # ------------------------------------------------------
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: |
+            parent_module/tfplan
+            parent_module/tfplan.json
+
+
+  # ==========================================================
+  # Stage 3 - AI Terraform Security Review
+  # ==========================================================
+
+  ai-review:
+
+    name: AI Terraform Security Review
+
+    runs-on: ubuntu-latest
 
     needs: plan
 
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+
+      # ------------------------------------------------------
+      # Python
+      # ------------------------------------------------------
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r agent/requirements.txt
+
+
+      # ------------------------------------------------------
+      # Download Terraform Plan
+      # ------------------------------------------------------
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: parent_module
+
+
+      - name: Verify Terraform Plan
+        run: |
+          ls -lh parent_module/
+          test -f parent_module/tfplan.json
+
+
+      # ------------------------------------------------------
+      # Run AI Reviewer
+      #
+      # Output JSON is saved into ai-review.json
+      # ------------------------------------------------------
+
+      - name: Run Terraform AI Reviewer
+        env:
+          AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
+          AZURE_SEARCH_API_KEY: ${{ secrets.AZURE_SEARCH_API_KEY }}
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
+
+        run: |
+          python agent/agent.py parent_module/tfplan.json > ai-review.json
+
+
+      # ------------------------------------------------------
+      # Display AI Result
+      # ------------------------------------------------------
+
+      - name: Display AI Review
+        run: |
+          cat ai-review.json
+
+
+      # ------------------------------------------------------
+      # Extract Risk Information
+      # ------------------------------------------------------
+
+      - name: Extract Risk Information
+        id: risk
+        run: |
+
+          RISK_LEVEL=$(python -c '
+          import json
+
+          with open("ai-review.json") as f:
+              data = json.load(f)
+
+          print(data.get("risk_level", "UNKNOWN"))
+          ')
+
+          RISK_SCORE=$(python -c '
+          import json
+
+          with open("ai-review.json") as f:
+              data = json.load(f)
+
+          print(data.get("risk_score", 0))
+          ')
+
+          DECISION=$(python -c '
+          import json
+
+          with open("ai-review.json") as f:
+              data = json.load(f)
+
+          print(data.get("decision", "UNKNOWN"))
+          ')
+
+          echo "Risk Level: $RISK_LEVEL"
+          echo "Risk Score: $RISK_SCORE"
+          echo "Decision: $DECISION"
+
+          echo "risk_level=$RISK_LEVEL" >> "$GITHUB_OUTPUT"
+          echo "risk_score=$RISK_SCORE" >> "$GITHUB_OUTPUT"
+          echo "decision=$DECISION" >> "$GITHUB_OUTPUT"
+
+
+      # ------------------------------------------------------
+      # Create PR Comment
+      # ------------------------------------------------------
+
+      - name: Create AI Review Report
+        run: |
+
+          python - <<'PY'
+
+          import json
+
+          with open("ai-review.json") as f:
+              data = json.load(f)
+
+          risk_level = data.get("risk_level", "UNKNOWN")
+          risk_score = data.get("risk_score", 0)
+
+          destroy_count = data.get(
+              "destroy_count",
+              0
+          )
+
+          create_count = data.get(
+              "create_count",
+              0
+          )
+
+          update_count = data.get(
+              "update_count",
+              0
+          )
+
+          signals = data.get(
+              "security_signals",
+              []
+          )
+
+          llm_review = data.get(
+              "llm_review",
+              {}
+          )
+
+          summary = llm_review.get(
+              "summary",
+              "No LLM summary available."
+          )
+
+          recommendations = llm_review.get(
+              "recommendations",
+              []
+          )
+
+          with open("pr-comment.md", "w") as f:
+
+              f.write("# 🤖 Terraform AI Security Review\n\n")
+
+              f.write(
+                  f"## Risk: **{risk_level}** "
+                  f"({risk_score}/100)\n\n"
+              )
+
+              f.write("### Terraform Changes\n\n")
+
+              f.write(
+                  f"- ➕ Create: **{create_count}**\n"
+              )
+
+              f.write(
+                  f"- 🔄 Update: **{update_count}**\n"
+              )
+
+              f.write(
+                  f"- 🗑️ Destroy: **{destroy_count}**\n\n"
+              )
+
+              f.write("### Security Signals\n\n")
+
+              if signals:
+
+                  for signal in signals:
+
+                      f.write(
+                          f"- **{signal.get('type')}** — "
+                          f"{signal.get('severity')} — "
+                          f"{signal.get('reason')}  \n"
+                      )
+
+              else:
+
+                  f.write(
+                      "No security signals detected.  \n"
+                  )
+
+              f.write("\n### AI Assessment\n\n")
+
+              f.write(
+                  summary
+              )
+
+              f.write("\n\n### Recommendations\n\n")
+
+              if recommendations:
+
+                  for recommendation in recommendations:
+
+                      f.write(
+                          f"- {recommendation}\n"
+                      )
+
+              else:
+
+                  f.write(
+                      "- No additional recommendations.\n"
+                  )
+
+              f.write(
+                  "\n---\n"
+                  "Generated by Terraform AI Security Reviewer."
+              )
+
+          PY
+
+
+      # ------------------------------------------------------
+      # Comment on GitHub PR
+      # ------------------------------------------------------
+
+      - name: Comment on Pull Request
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+        run: |
+
+          gh pr comment \
+            "${{ github.event.pull_request.number }}" \
+            --body-file pr-comment.md
+
+
+      # ------------------------------------------------------
+      # HIGH Risk Gate
+      #
+      # HIGH = stop pipeline
+      # LOW/MEDIUM = continue
+      # ------------------------------------------------------
+
+      - name: Enforce AI Security Gate
+        run: |
+
+          RISK_LEVEL="${{ steps.risk.outputs.risk_level }}"
+
+          echo "AI Risk Level: $RISK_LEVEL"
+
+          if [ "$RISK_LEVEL" = "HIGH" ]; then
+
+            echo ""
+            echo "=========================================="
+            echo "🚨 HIGH RISK DETECTED"
+            echo "=========================================="
+            echo ""
+            echo "Terraform deployment blocked."
+            echo "Manual security review is required."
+            echo ""
+
+            exit 1
+
+          fi
+
+          if [ "$RISK_LEVEL" = "MEDIUM" ]; then
+
+            echo ""
+            echo "⚠️ MEDIUM RISK"
+            echo "Review recommended."
+            echo "Pipeline will continue."
+            echo ""
+
+          fi
+
+          if [ "$RISK_LEVEL" = "LOW" ]; then
+
+            echo ""
+            echo "✅ LOW RISK"
+            echo "Pipeline can continue."
+            echo ""
+
+          fi
+
+
+      # ------------------------------------------------------
+      # Upload AI Review
+      # ------------------------------------------------------
+
+      - name: Upload AI Review
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-ai-review
+          path: |
+            ai-review.json
+            pr-comment.md
+
+
+  # ==========================================================
+  # Stage 4 - Terraform Apply
+  # ==========================================================
+
+  apply:
+
+    name: Terraform Apply
+
+    needs:
+      - ai-review
+
+    # Apply only after push/merge to main
+    if: >
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
 
     runs-on: ubuntu-latest
+
+    # --------------------------------------------------------
+    # GitHub Environment Approval
+    #
+    # Configure required reviewer in:
+    #
+    # Repository
+    # → Settings
+    # → Environments
+    # → production
+    # → Required reviewers
+    # --------------------------------------------------------
 
     environment:
       name: production
 
     steps:
-      - uses: actions/checkout@v4
 
-      - uses: hashicorp/setup-terraform@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.15.8
-      
+          terraform_version: "1.15.8"
+
+
+      # ------------------------------------------------------
+      # Azure Login
+      # ------------------------------------------------------
 
       - name: Azure Login
         uses: azure/login@v2
-      
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - working-directory: parent_module
-        run: terraform init
 
-      - working-directory: parent_module
-        run: terraform apply -auto-approve
+      # ------------------------------------------------------
+      # Terraform Init
+      # ------------------------------------------------------
 
-      - working-directory: parent_module
-        run: terraform destroy
+      - name: Terraform Init
+        working-directory: parent_module
+        run: |
+          terraform init
+
+
+      # ------------------------------------------------------
+      # Terraform Apply
+      # ------------------------------------------------------
+
+      - name: Terraform Apply
+        working-directory: parent_module
+        run: |
+          terraform apply -auto-approve
