@@ -30,9 +30,9 @@ module "subnet" {
   subnetsData = var.subnets
 }
 
-module "VM" {
-  depends_on = [module.resource, module.public_ip, module.subnet, module.vnet]
+# module "VM" {
+#   depends_on = [module.resource, module.public_ip, module.subnet, module.vnet]
 
-  source = "./child_module/azurerm_virtual_machine"
-  VM     = var.vms
-}
+#   source = "./child_module/azurerm_virtual_machine"
+#   VM     = var.vms
+# }
