@@ -32,9 +32,17 @@ jobs:
 
     steps:
 
+      # ------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+
+      # ------------------------------------------------------
+      # Terraform
+      # ------------------------------------------------------
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -45,17 +53,27 @@ jobs:
       - name: Terraform Version
         run: terraform version
 
-      - name: Terraform Format Check
-        run: terraform fmt -recursive
+
+      # ------------------------------------------------------
+      # Terraform Format
+      # ------------------------------------------------------
 
       - name: Terraform Format Check
-        run: terraform fmt -check -recursive 
+        run: terraform fmt -check -recursive
 
+
+      # ------------------------------------------------------
+      # Terraform Init
+      # ------------------------------------------------------
 
       - name: Terraform Init
         working-directory: parent_module
         run: terraform init
 
+
+      # ------------------------------------------------------
+      # Terraform Validate
+      # ------------------------------------------------------
 
       - name: Terraform Validate
         working-directory: parent_module
@@ -86,8 +104,8 @@ jobs:
       - name: Install TruffleHog
         run: |
           curl -sSfL \
-          https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \
-          | sh -s -- -b /usr/local/bin
+            https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \
+            | sh -s -- -b /usr/local/bin
 
 
       - name: Run TruffleHog
@@ -102,8 +120,8 @@ jobs:
       - name: Install TFLint
         run: |
           curl -s \
-          https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh \
-          | bash
+            https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh \
+            | bash
 
 
       - name: Run TFLint
@@ -120,8 +138,8 @@ jobs:
       - name: Install tfsec
         run: |
           curl -s \
-          https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh \
-          | bash
+            https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh \
+            | bash
 
 
       - name: Run tfsec
@@ -144,9 +162,17 @@ jobs:
 
     steps:
 
+      # ------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+
+      # ------------------------------------------------------
+      # Terraform
+      # ------------------------------------------------------
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -166,6 +192,10 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
 
+      # ------------------------------------------------------
+      # Terraform Init
+      # ------------------------------------------------------
+
       - name: Terraform Init
         working-directory: parent_module
         run: |
@@ -183,7 +213,7 @@ jobs:
 
 
       # ------------------------------------------------------
-      # Convert Plan to JSON
+      # Terraform Plan JSON
       # ------------------------------------------------------
 
       - name: Terraform Show JSON
@@ -193,7 +223,7 @@ jobs:
 
 
       # ------------------------------------------------------
-      # Upload Plan
+      # Upload Terraform Plan
       # ------------------------------------------------------
 
       - name: Upload Terraform Plan
@@ -218,6 +248,10 @@ jobs:
     needs: plan
 
     steps:
+
+      # ------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------
 
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -250,16 +284,66 @@ jobs:
           path: parent_module
 
 
+      # ------------------------------------------------------
+      # Verify Terraform Plan
+      # ------------------------------------------------------
+
       - name: Verify Terraform Plan
         run: |
+
+          echo "=========================================="
+          echo "Terraform Plan Verification"
+          echo "=========================================="
+
+          echo ""
+          echo "parent_module contents:"
           ls -lh parent_module/
+
+          echo ""
+          echo "Checking tfplan.json..."
+
           test -f parent_module/tfplan.json
+
+          echo "✅ tfplan.json found"
+
+          echo ""
+          echo "Plan JSON size:"
+          ls -lh parent_module/tfplan.json
 
 
       # ------------------------------------------------------
-      # Run AI Reviewer
-      #
-      # Output JSON is saved into ai-review.json
+      # Verify Python Environment
+      # ------------------------------------------------------
+
+      - name: Verify Python Environment
+        run: |
+
+          echo "=========================================="
+          echo "Python Environment"
+          echo "=========================================="
+
+          python --version
+
+          echo ""
+          echo "Installed packages:"
+          python -m pip list
+
+          echo ""
+          echo "Checking Azure/OpenAI imports..."
+
+          python -c "
+          import openai
+          import azure.core
+          import azure.search.documents
+
+          print('✅ openai import OK')
+          print('✅ azure.core import OK')
+          print('✅ azure.search.documents import OK')
+          "
+
+
+      # ------------------------------------------------------
+      # Run Terraform AI Reviewer
       # ------------------------------------------------------
 
       - name: Run Terraform AI Reviewer
@@ -271,7 +355,100 @@ jobs:
           AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
 
         run: |
+
+          set -e
+
+          echo "=========================================="
+          echo "Terraform AI Reviewer"
+          echo "=========================================="
+
+          echo ""
+          echo "Checking required Azure environment variables..."
+
+          if [ -z "$AZURE_SEARCH_ENDPOINT" ]; then
+            echo "❌ AZURE_SEARCH_ENDPOINT is missing"
+            exit 1
+          fi
+
+          if [ -z "$AZURE_SEARCH_API_KEY" ]; then
+            echo "❌ AZURE_SEARCH_API_KEY is missing"
+            exit 1
+          fi
+
+          if [ -z "$AZURE_OPENAI_ENDPOINT" ]; then
+            echo "❌ AZURE_OPENAI_ENDPOINT is missing"
+            exit 1
+          fi
+
+          if [ -z "$AZURE_OPENAI_API_KEY" ]; then
+            echo "❌ AZURE_OPENAI_API_KEY is missing"
+            exit 1
+          fi
+
+          if [ -z "$AZURE_OPENAI_DEPLOYMENT" ]; then
+            echo "❌ AZURE_OPENAI_DEPLOYMENT is missing"
+            exit 1
+          fi
+
+          echo "✅ Required Azure environment variables are present"
+
+
+          echo ""
+          echo "=========================================="
+          echo "Checking Agent Files"
+          echo "=========================================="
+
+          ls -lh agent/
+
+          test -f agent/agent.py
+
+          echo "✅ agent.py found"
+
+
+          echo ""
+          echo "=========================================="
+          echo "Running AI Reviewer"
+          echo "=========================================="
+
           python agent/agent.py parent_module/tfplan.json > ai-review.json
+
+          echo ""
+          echo "=========================================="
+          echo "AI Reviewer Completed"
+          echo "=========================================="
+
+          echo ""
+          echo "AI Review File:"
+          ls -lh ai-review.json
+
+          echo ""
+          echo "AI Review Output:"
+          cat ai-review.json
+
+
+      # ------------------------------------------------------
+      # Validate AI JSON
+      # ------------------------------------------------------
+
+      - name: Validate AI Review JSON
+        run: |
+
+          echo "=========================================="
+          echo "Validating AI Review JSON"
+          echo "=========================================="
+
+          python -c "
+          import json
+
+          with open('ai-review.json') as f:
+              data = json.load(f)
+
+          print('✅ ai-review.json is valid JSON')
+          print('')
+          print('Risk Level:', data.get('risk_level', 'UNKNOWN'))
+          print('Risk Score:', data.get('risk_score', 0))
+          print('Decision:', data.get('decision', 'UNKNOWN'))
+          "
 
 
       # ------------------------------------------------------
@@ -280,6 +457,9 @@ jobs:
 
       - name: Display AI Review
         run: |
+          echo "=========================================="
+          echo "Final AI Review"
+          echo "=========================================="
           cat ai-review.json
 
 
@@ -341,8 +521,15 @@ jobs:
           with open("ai-review.json") as f:
               data = json.load(f)
 
-          risk_level = data.get("risk_level", "UNKNOWN")
-          risk_score = data.get("risk_score", 0)
+          risk_level = data.get(
+              "risk_level",
+              "UNKNOWN"
+          )
+
+          risk_score = data.get(
+              "risk_score",
+              0
+          )
 
           destroy_count = data.get(
               "destroy_count",
@@ -379,16 +566,23 @@ jobs:
               []
           )
 
-          with open("pr-comment.md", "w") as f:
+          with open(
+              "pr-comment.md",
+              "w"
+          ) as f:
 
-              f.write("# 🤖 Terraform AI Security Review\n\n")
+              f.write(
+                  "# 🤖 Terraform AI Security Review\n\n"
+              )
 
               f.write(
                   f"## Risk: **{risk_level}** "
                   f"({risk_score}/100)\n\n"
               )
 
-              f.write("### Terraform Changes\n\n")
+              f.write(
+                  "### Terraform Changes\n\n"
+              )
 
               f.write(
                   f"- ➕ Create: **{create_count}**\n"
@@ -402,7 +596,9 @@ jobs:
                   f"- 🗑️ Destroy: **{destroy_count}**\n\n"
               )
 
-              f.write("### Security Signals\n\n")
+              f.write(
+                  "### Security Signals\n\n"
+              )
 
               if signals:
 
@@ -420,13 +616,17 @@ jobs:
                       "No security signals detected.  \n"
                   )
 
-              f.write("\n### AI Assessment\n\n")
+              f.write(
+                  "\n### AI Assessment\n\n"
+              )
 
               f.write(
                   summary
               )
 
-              f.write("\n\n### Recommendations\n\n")
+              f.write(
+                  "\n\n### Recommendations\n\n"
+              )
 
               if recommendations:
 
@@ -468,15 +668,16 @@ jobs:
 
       # ------------------------------------------------------
       # HIGH Risk Gate
-      #
-      # HIGH = stop pipeline
-      # LOW/MEDIUM = continue
       # ------------------------------------------------------
 
       - name: Enforce AI Security Gate
         run: |
 
           RISK_LEVEL="${{ steps.risk.outputs.risk_level }}"
+
+          echo "=========================================="
+          echo "AI Security Gate"
+          echo "=========================================="
 
           echo "AI Risk Level: $RISK_LEVEL"
 
@@ -486,6 +687,7 @@ jobs:
             echo "=========================================="
             echo "🚨 HIGH RISK DETECTED"
             echo "=========================================="
+
             echo ""
             echo "Terraform deployment blocked."
             echo "Manual security review is required."
@@ -494,6 +696,7 @@ jobs:
             exit 1
 
           fi
+
 
           if [ "$RISK_LEVEL" = "MEDIUM" ]; then
 
@@ -504,6 +707,7 @@ jobs:
             echo ""
 
           fi
+
 
           if [ "$RISK_LEVEL" = "LOW" ]; then
 
@@ -521,8 +725,10 @@ jobs:
 
       - name: Upload AI Review
         uses: actions/upload-artifact@v4
+
         with:
           name: terraform-ai-review
+
           path: |
             ai-review.json
             pr-comment.md
@@ -539,17 +745,19 @@ jobs:
     needs:
       - ai-review
 
-    # Apply only after push/merge to main
+    # --------------------------------------------------------
+    # Apply only after merge/push to main
+    # --------------------------------------------------------
+
     if: >
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main'
 
     runs-on: ubuntu-latest
 
+
     # --------------------------------------------------------
     # GitHub Environment Approval
-    #
-    # Configure required reviewer in:
     #
     # Repository
     # → Settings
@@ -561,11 +769,20 @@ jobs:
     environment:
       name: production
 
+
     steps:
+
+      # ------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------
 
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+
+      # ------------------------------------------------------
+      # Terraform
+      # ------------------------------------------------------
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
