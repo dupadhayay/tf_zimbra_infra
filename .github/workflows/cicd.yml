@@ -1536,4 +1536,3 @@ jobs:
 
           echo ""
           echo "Terraform Apply completed successfully."
-```
