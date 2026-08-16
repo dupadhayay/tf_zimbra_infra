@@ -1,7 +1,7 @@
+```yaml
 name: Terraform AI Security Review
 
 on:
-
   workflow_dispatch:
 
   push:
@@ -12,16 +12,17 @@ on:
     branches:
       - main
 
-
 permissions:
-
   id-token: write
   contents: read
   pull-requests: write
 
+env:
+  TF_VERSION: "1.10.5"
+  PYTHON_VERSION: "3.11"
 
 # ============================================================
-# Stage 1 - Security Scan
+# STAGE 1 - SECURITY SCAN
 # ============================================================
 
 jobs:
@@ -29,9 +30,7 @@ jobs:
   security-scan:
 
     name: Terraform Security Scan
-
     runs-on: ubuntu-latest
-
     timeout-minutes: 20
 
     steps:
@@ -41,169 +40,114 @@ jobs:
       # ------------------------------------------------------
 
       - name: Checkout Repository
-
         uses: actions/checkout@v4
-
 
       # ------------------------------------------------------
       # Terraform
       # ------------------------------------------------------
 
       - name: Setup Terraform
-
         uses: hashicorp/setup-terraform@v3
-
         with:
-
-          terraform_version: "1.15.8"
-
+          terraform_version: ${{ env.TF_VERSION }}
 
       - name: Terraform Version
-
-        run: |
-
-          terraform version
-
+        run: terraform version
 
       # ------------------------------------------------------
       # Terraform Format
       # ------------------------------------------------------
 
       - name: Terraform Format Check
-
-        run: |
-
-          terraform fmt -check -recursive
-
+        run: terraform fmt -check -recursive
 
       # ------------------------------------------------------
       # Terraform Init
       # ------------------------------------------------------
 
       - name: Terraform Init
-
         working-directory: parent_module
-
-        run: |
-
-          terraform init
-
+        run: terraform init
 
       # ------------------------------------------------------
       # Terraform Validate
       # ------------------------------------------------------
 
       - name: Terraform Validate
-
         working-directory: parent_module
+        run: terraform validate
 
-        run: |
-
-          terraform validate
-
-
-      # ======================================================
+      # ------------------------------------------------------
       # Gitleaks
-      # ======================================================
+      # ------------------------------------------------------
 
       - name: Install Gitleaks
-
         run: |
-
           sudo apt-get update
-
           sudo apt-get install -y gitleaks
 
-
       - name: Run Gitleaks
-
         run: |
-
           gitleaks detect \
             --source . \
             --exit-code 1
 
-
-      # ======================================================
+      # ------------------------------------------------------
       # TruffleHog
-      # ======================================================
+      # ------------------------------------------------------
 
       - name: Install TruffleHog
-
         run: |
-
           curl -sSfL \
             https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \
             | sh -s -- -b /usr/local/bin
 
-
       - name: Run TruffleHog
-
         run: |
-
           trufflehog filesystem . --json > trufflehog-report.json
 
-
-      # ======================================================
+      # ------------------------------------------------------
       # TFLint
-      # ======================================================
+      # ------------------------------------------------------
 
       - name: Install TFLint
-
         run: |
-
           curl -s \
             https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh \
             | bash
 
-
       - name: Run TFLint
-
         working-directory: parent_module
-
         run: |
-
           tflint --init
-
           tflint
 
-
-      # ======================================================
+      # ------------------------------------------------------
       # tfsec
-      # ======================================================
+      # ------------------------------------------------------
 
       - name: Install tfsec
-
         run: |
-
           curl -s \
             https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh \
             | bash
 
-
       - name: Run tfsec
-
         working-directory: parent_module
-
         run: |
-
           tfsec .
 
-
-  # ==========================================================
-  # Stage 2 - Terraform Plan
-  # ==========================================================
+# ============================================================
+# STAGE 2 - TERRAFORM PLAN
+# ============================================================
 
   plan:
 
     name: Terraform Plan
-
     runs-on: ubuntu-latest
-
     timeout-minutes: 30
 
     needs:
-
       - security-scan
 
     steps:
@@ -213,160 +157,126 @@ jobs:
       # ------------------------------------------------------
 
       - name: Checkout Repository
-
         uses: actions/checkout@v4
-
 
       # ------------------------------------------------------
       # Terraform
       # ------------------------------------------------------
 
       - name: Setup Terraform
-
         uses: hashicorp/setup-terraform@v3
-
         with:
+          terraform_version: ${{ env.TF_VERSION }}
 
-          terraform_version: "1.15.8"
+      - name: Terraform Version
+        run: terraform version
 
-
-      # ------------------------------------------------------
-      # Azure Login
-      # ------------------------------------------------------
+      # ======================================================
+      # AZURE LOGIN
+      # ======================================================
 
       - name: Azure Login
-
         uses: azure/login@v2
-
         with:
-
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
-
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
+          environment: AzureCloud
 
       # ------------------------------------------------------
-      # Azure Account Diagnostics
+      # Verify Azure Login
       # ------------------------------------------------------
 
-      - name: Azure Account Diagnostics
-
+      - name: Verify Azure Login
+        shell: bash
         run: |
+          set -e
 
           echo "=========================================="
-          echo "Azure Account Diagnostics"
+          echo "AZURE LOGIN VERIFICATION"
           echo "=========================================="
 
           az account show \
-            --query "{subscriptionId:id,subscriptionName:name,tenantId:tenantId,user:user.name}" \
-            --output table
+            --query "{subscription:id,tenant:tenantId,name:name}" \
+            --output json
 
           echo ""
-
-          echo "Azure CLI version:"
-
+          echo "Azure CLI:"
           az version --output table
 
+          echo ""
+          echo "Azure authentication successful."
 
       # ------------------------------------------------------
       # Terraform Init
       # ------------------------------------------------------
 
       - name: Terraform Init
-
         working-directory: parent_module
-
-        run: |
-
-          terraform init
-
+        run: terraform init
 
       # ------------------------------------------------------
       # Terraform Plan
       # ------------------------------------------------------
 
       - name: Terraform Plan
-
         working-directory: parent_module
-
         run: |
-
           terraform plan -out=tfplan
 
-
       # ------------------------------------------------------
-      # Terraform Plan JSON
+      # Terraform JSON
       # ------------------------------------------------------
 
       - name: Terraform Show JSON
-
         working-directory: parent_module
-
         run: |
-
           terraform show -json tfplan > tfplan.json
-
 
       # ------------------------------------------------------
       # Verify Plan
       # ------------------------------------------------------
 
       - name: Verify Terraform Plan
-
         run: |
+          set -e
 
           echo "=========================================="
-          echo "Terraform Plan Verification"
+          echo "TERRAFORM PLAN VERIFICATION"
           echo "=========================================="
 
           ls -lh parent_module/tfplan
-
           ls -lh parent_module/tfplan.json
 
           test -f parent_module/tfplan
-
           test -f parent_module/tfplan.json
 
           echo ""
-
-          echo "Terraform plan generated successfully"
-
+          echo "Terraform plan generated successfully."
 
       # ------------------------------------------------------
-      # Upload Terraform Plan
+      # Upload Plan
       # ------------------------------------------------------
 
       - name: Upload Terraform Plan
-
         uses: actions/upload-artifact@v4
-
         with:
-
           name: terraform-plan
-
           path: |
-
             parent_module/tfplan
-
             parent_module/tfplan.json
 
-
-  # ==========================================================
-  # Stage 3 - AI Terraform Security Review
-  # ==========================================================
+# ============================================================
+# STAGE 3 - AI TERRAFORM SECURITY REVIEW
+# ============================================================
 
   ai-review:
 
     name: AI Terraform Security Review
-
     runs-on: ubuntu-latest
-
     timeout-minutes: 30
 
     needs:
-
       - plan
 
     steps:
@@ -376,1639 +286,742 @@ jobs:
       # ------------------------------------------------------
 
       - name: Checkout Repository
-
         uses: actions/checkout@v4
-
 
       # ------------------------------------------------------
       # Python
       # ------------------------------------------------------
 
       - name: Setup Python
-
         uses: actions/setup-python@v5
-
         with:
-
-          python-version: "3.11"
-
+          python-version: ${{ env.PYTHON_VERSION }}
 
       # ------------------------------------------------------
       # Python Dependencies
       # ------------------------------------------------------
 
       - name: Install Python Dependencies
-
         run: |
-
           python -m pip install --upgrade pip
-
           pip install -r agent/requirements.txt
-
 
       # ------------------------------------------------------
       # Download Terraform Plan
       # ------------------------------------------------------
 
       - name: Download Terraform Plan
-
         uses: actions/download-artifact@v4
-
         with:
-
           name: terraform-plan
-
           path: parent_module
-
 
       # ------------------------------------------------------
       # Verify Terraform Plan
       # ------------------------------------------------------
 
       - name: Verify Terraform Plan
-
         run: |
+          set -e
 
           echo "=========================================="
-          echo "Terraform Plan Verification"
+          echo "TERRAFORM PLAN VERIFICATION"
           echo "=========================================="
 
           ls -lh parent_module/
 
           test -f parent_module/tfplan
-
           test -f parent_module/tfplan.json
-
-          echo ""
-
-          echo "tfplan found successfully"
-
-          echo "tfplan.json found successfully"
-
 
       # ------------------------------------------------------
       # Verify AI Agent
       # ------------------------------------------------------
 
       - name: Verify AI Agent
-
         run: |
+          set -e
 
           echo "=========================================="
-          echo "AI Agent Verification"
+          echo "AI AGENT VERIFICATION"
           echo "=========================================="
 
           ls -lh agent/
 
           test -f agent/agent.py
 
-          echo ""
-
-          echo "agent.py found"
-
           python --version
-
 
       # ------------------------------------------------------
       # Verify Python Packages
       # ------------------------------------------------------
 
       - name: Verify Python Packages
-
         run: |
-
-          echo "=========================================="
-          echo "Python Package Verification"
-          echo "=========================================="
-
-          python -c "
-
+          python - <<'PY'
           import openai
           import azure.core
           import azure.search.documents
           import azure.search.documents.indexes
 
-          print('openai import OK')
-          print('azure.core import OK')
-          print('azure.search.documents import OK')
-          print('azure.search.documents.indexes import OK')
-
-          "
-
+          print("openai import OK")
+          print("azure.core import OK")
+          print("azure.search.documents import OK")
+          print("azure.search.documents.indexes import OK")
+          PY
 
       # ======================================================
-      # Azure Configuration
+      # AZURE LOGIN
+      #
+      # IMPORTANT:
+      # Every GitHub Actions job runs on a new runner.
+      # Therefore Azure login from the PLAN job does NOT
+      # carry over to this AI REVIEW job.
       # ======================================================
 
-      - name: Verify Azure Configuration
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          environment: AzureCloud
 
-        env:
+      # ======================================================
+      # DIAGNOSTIC 1 - AZURE SUBSCRIPTION
+      # ======================================================
 
-          AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
-
-          AZURE_SEARCH_API_KEY: ${{ secrets.AZURE_SEARCH_API_KEY }}
-
-          AZURE_SEARCH_INDEX: ${{ secrets.AZURE_SEARCH_INDEX }}
-
-          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-
-          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
-
-          AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
-
+      - name: Diagnostic 1 - Azure Subscription
+        shell: bash
         run: |
-
-          echo "=========================================="
-          echo "Azure Configuration Validation"
-          echo "=========================================="
-
-          test -n "$AZURE_SEARCH_ENDPOINT" || {
-            echo "ERROR: AZURE_SEARCH_ENDPOINT is missing"
-            exit 1
-          }
-
-          test -n "$AZURE_SEARCH_API_KEY" || {
-            echo "ERROR: AZURE_SEARCH_API_KEY is missing"
-            exit 1
-          }
-
-          test -n "$AZURE_SEARCH_INDEX" || {
-            echo "ERROR: AZURE_SEARCH_INDEX is missing"
-            exit 1
-          }
-
-          test -n "$AZURE_OPENAI_ENDPOINT" || {
-            echo "ERROR: AZURE_OPENAI_ENDPOINT is missing"
-            exit 1
-          }
-
-          test -n "$AZURE_OPENAI_API_KEY" || {
-            echo "ERROR: AZURE_OPENAI_API_KEY is missing"
-            exit 1
-          }
-
-          test -n "$AZURE_OPENAI_DEPLOYMENT" || {
-            echo "ERROR: AZURE_OPENAI_DEPLOYMENT is missing"
-            exit 1
-          }
-
-          echo ""
-
-          echo "All required Azure secrets are present."
-
-          echo ""
-
-          echo "Search Endpoint:"
-          echo "$AZURE_SEARCH_ENDPOINT"
-
-          echo ""
-
-          echo "Search Index:"
-          echo "$AZURE_SEARCH_INDEX"
-
-          echo ""
-
-          echo "OpenAI Endpoint:"
-          echo "$AZURE_OPENAI_ENDPOINT"
-
-          echo ""
-
-          echo "OpenAI Deployment:"
-          echo "$AZURE_OPENAI_DEPLOYMENT"
-
-
-      # ======================================================
-      # DIAGNOSTIC 1
-      # Azure Subscription
-      # ======================================================
-
-      - name: Diagnostic - Azure Subscription
-
-        run: |
+          set -e
 
           echo "=========================================="
           echo "DIAGNOSTIC 1 - Azure Subscription"
           echo "=========================================="
 
           az account show \
-            --query "{subscriptionId:id,subscriptionName:name,tenantId:tenantId,user:user.name}" \
-            --output table
+            --query "{subscription:id,tenant:tenantId,name:name}" \
+            --output json
 
           echo ""
-
-          echo "Subscription ID:"
-
-          az account show \
-            --query id \
-            --output tsv
-
-          echo ""
-
-          echo "Tenant ID:"
-
-          az account show \
-            --query tenantId \
-            --output tsv
-
+          echo "Azure authentication is working."
 
       # ======================================================
-      # DIAGNOSTIC 2
-      # Parse Search Endpoint
+      # AZURE CONFIGURATION
       # ======================================================
 
-      - name: Diagnostic - Parse Search Endpoint
-
+      - name: Verify Azure Configuration
         env:
-
           AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
-
+          AZURE_SEARCH_API_KEY: ${{ secrets.AZURE_SEARCH_API_KEY }}
+          AZURE_SEARCH_INDEX: ${{ secrets.AZURE_SEARCH_INDEX }}
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
         run: |
+          set -e
 
           echo "=========================================="
-          echo "DIAGNOSTIC 2 - Azure Search Endpoint"
+          echo "AZURE CONFIGURATION CHECK"
           echo "=========================================="
 
+          test -n "$AZURE_SEARCH_ENDPOINT" || {
+            echo "ERROR: AZURE_SEARCH_ENDPOINT missing"
+            exit 1
+          }
+
+          test -n "$AZURE_SEARCH_API_KEY" || {
+            echo "ERROR: AZURE_SEARCH_API_KEY missing"
+            exit 1
+          }
+
+          test -n "$AZURE_SEARCH_INDEX" || {
+            echo "ERROR: AZURE_SEARCH_INDEX missing"
+            exit 1
+          }
+
+          test -n "$AZURE_OPENAI_ENDPOINT" || {
+            echo "ERROR: AZURE_OPENAI_ENDPOINT missing"
+            exit 1
+          }
+
+          test -n "$AZURE_OPENAI_API_KEY" || {
+            echo "ERROR: AZURE_OPENAI_API_KEY missing"
+            exit 1
+          }
+
+          test -n "$AZURE_OPENAI_DEPLOYMENT" || {
+            echo "ERROR: AZURE_OPENAI_DEPLOYMENT missing"
+            exit 1
+          }
+
+          echo "All Azure secrets are present."
+
+      # ======================================================
+      # DIAGNOSTIC 2 - SEARCH ENDPOINT
+      # ======================================================
+
+      - name: Diagnostic 2 - Azure Search Endpoint
+        env:
+          AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
+          AZURE_SEARCH_INDEX: ${{ secrets.AZURE_SEARCH_INDEX }}
+        run: |
           python - <<'PY'
-
           import os
-
           from urllib.parse import urlparse
 
+          endpoint = os.environ["AZURE_SEARCH_ENDPOINT"]
+          index_name = os.environ["AZURE_SEARCH_INDEX"]
 
-          endpoint = os.environ[
-              "AZURE_SEARCH_ENDPOINT"
-          ].strip()
+          print("==========================================")
+          print("AZURE SEARCH ENDPOINT")
+          print("==========================================")
 
+          print("Endpoint:", endpoint)
+          print("Index:", index_name)
 
           parsed = urlparse(endpoint)
 
-
-          print("Configured endpoint:")
-          print(endpoint)
-
           print("")
-
-          print("Scheme :", parsed.scheme)
-          print("Host   :", parsed.hostname)
-          print("Path   :", parsed.path)
-
+          print("Scheme:", parsed.scheme)
+          print("Host:", parsed.hostname)
+          print("Path:", parsed.path)
 
           if parsed.scheme != "https":
-
-              print("")
-              print("ERROR: Search endpoint must use HTTPS.")
-
-              raise SystemExit(1)
-
+              raise SystemExit(
+                  "ERROR: Search endpoint must use HTTPS"
+              )
 
           if not parsed.hostname:
+              raise SystemExit(
+                  "ERROR: Search hostname missing"
+              )
 
-              print("")
-              print("ERROR: Search endpoint hostname missing.")
-
-              raise SystemExit(1)
-
-
-          host = parsed.hostname
-
-
-          if not host.endswith(
+          if not parsed.hostname.endswith(
               ".search.windows.net"
           ):
-
-              print("")
               print(
-                  "WARNING: Host does not look like a standard "
-                  "Azure AI Search endpoint."
+                  "WARNING: Host does not look like "
+                  "standard Azure AI Search hostname."
               )
 
-              print("")
-              print(
-                  "Expected:"
+          if parsed.path not in ("", "/"):
+              raise SystemExit(
+                  "ERROR: Search endpoint contains a path. "
+                  "Use https://<service>.search.windows.net"
               )
-
-              print(
-                  "https://<service-name>.search.windows.net"
-              )
-
-
-          service_name = host.split(".")[0]
-
 
           print("")
-          print(
-              "Detected Search Service Name:"
-          )
-
-          print(service_name)
-
-
-          with open(
-              "/tmp/search_service_name",
-              "w"
-          ) as f:
-
-              f.write(service_name)
-
-
-      # ======================================================
-      # DIAGNOSTIC 3
-      # DNS
-      # ======================================================
-
-      - name: Diagnostic - Search DNS
-
-        env:
-
-          AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
-
-        run: |
-
-          echo "=========================================="
-          echo "DIAGNOSTIC 3 - Azure Search DNS"
-          echo "=========================================="
-
-          SEARCH_HOST=$(python - <<'PY'
-          import os
-          from urllib.parse import urlparse
-
-          print(
-              urlparse(
-                  os.environ["AZURE_SEARCH_ENDPOINT"]
-              ).hostname
-          )
+          print("Endpoint format looks valid.")
           PY
-          )
-
-          echo "Search Host:"
-          echo "$SEARCH_HOST"
-
-          echo ""
-
-          echo "DNS lookup:"
-
-          getent hosts "$SEARCH_HOST" || true
-
-          echo ""
-
-          echo "DNS diagnostic completed."
-
 
       # ======================================================
-      # DIAGNOSTIC 4
-      # Azure Search Services
-      #
-      # IMPORTANT ROOT CAUSE CHECK
+      # DIAGNOSTIC 3 - SEARCH HTTP
       # ======================================================
 
-      - name: Diagnostic - Azure Search Services
-
+      - name: Diagnostic 3 - Azure Search HTTP
         env:
-
           AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
-
         run: |
-
-          echo "=========================================="
-          echo "DIAGNOSTIC 4 - Azure Search Services"
-          echo "=========================================="
-
-          echo ""
-
-          echo "Search services visible in authenticated subscription:"
-
-          echo ""
-
-          az resource list \
-            --resource-type Microsoft.Search/searchServices \
-            --query "[].{name:name,resourceGroup:resourceGroup,location:location,id:id}" \
-            --output table
-
-          echo ""
-
-          SEARCH_SERVICE=$(python - <<'PY'
-          import os
-          from urllib.parse import urlparse
-
-          host = urlparse(
-              os.environ["AZURE_SEARCH_ENDPOINT"]
-          ).hostname
-
-          print(
-              host.split(".")[0]
-          )
-          PY
-          )
-
-          echo "Search service extracted from GitHub secret:"
-          echo "$SEARCH_SERVICE"
-
-          echo ""
-
-          FOUND=$(az resource list \
-            --resource-type Microsoft.Search/searchServices \
-            --query "[?name=='$SEARCH_SERVICE'].id | [0]" \
-            --output tsv)
-
-          if [ -z "$FOUND" ]; then
-
-            echo ""
-            echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-            echo "ROOT CAUSE CANDIDATE"
-            echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-
-            echo ""
-
-            echo "Search service was NOT found in the"
-            echo "authenticated Azure subscription."
-
-            echo ""
-
-            echo "Expected Search Service:"
-            echo "$SEARCH_SERVICE"
-
-            echo ""
-
-            echo "Possible causes:"
-
-            echo "1. Wrong AZURE_SEARCH_ENDPOINT"
-
-            echo "2. Wrong AZURE_SUBSCRIPTION_ID"
-
-            echo "3. Search service exists in another subscription"
-
-            echo "4. Search service was deleted"
-
-            echo "5. GitHub OIDC is authenticating against wrong tenant/subscription"
-
-            echo ""
-
-            exit 1
-
-          fi
-
-
-          echo "SUCCESS: Search service exists."
-
-          echo ""
-
-          echo "Resource ID:"
-          echo "$FOUND"
-
-
-          echo "$FOUND" > /tmp/search_resource_id
-
-
-      # ======================================================
-      # DIAGNOSTIC 5
-      # Actual Azure Search Endpoint
-      # ======================================================
-
-      - name: Diagnostic - Actual Azure Search Endpoint
-
-        run: |
-
-          echo "=========================================="
-          echo "DIAGNOSTIC 5 - Actual Azure Search Endpoint"
-          echo "=========================================="
-
-          SEARCH_RESOURCE_ID=$(cat /tmp/search_resource_id)
-
-
-          echo "Search Resource:"
-          echo "$SEARCH_RESOURCE_ID"
-
-          echo ""
-
-
-          ACTUAL_ENDPOINT=$(az resource show \
-            --ids "$SEARCH_RESOURCE_ID" \
-            --query "properties.endpoint" \
-            --output tsv)
-
-
-          echo "Actual Azure Search endpoint:"
-          echo "$ACTUAL_ENDPOINT"
-
-          echo ""
-
-
-          SECRET_ENDPOINT="${{ secrets.AZURE_SEARCH_ENDPOINT }}"
-
-
-          echo "GitHub secret endpoint:"
-          echo "$SECRET_ENDPOINT"
-
-          echo ""
-
-
-          if [ "$ACTUAL_ENDPOINT" = "$SECRET_ENDPOINT" ]; then
-
-            echo "SUCCESS:"
-            echo "GitHub endpoint matches Azure."
-
-          else
-
-            echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-            echo "ROOT CAUSE FOUND"
-            echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-
-            echo ""
-
-            echo "GitHub AZURE_SEARCH_ENDPOINT does NOT"
-            echo "match the endpoint configured on Azure."
-
-            echo ""
-
-            echo "GitHub:"
-            echo "$SECRET_ENDPOINT"
-
-            echo ""
-
-            echo "Azure:"
-            echo "$ACTUAL_ENDPOINT"
-
-            echo ""
-
-            echo "Update GitHub Secret:"
-            echo "AZURE_SEARCH_ENDPOINT"
-
-            echo ""
-
-            exit 1
-
-          fi
-
-
-      # ======================================================
-      # DIAGNOSTIC 6
-      # Search Service Properties
-      # ======================================================
-
-      - name: Diagnostic - Search Service Properties
-
-        run: |
-
-          echo "=========================================="
-          echo "DIAGNOSTIC 6 - Search Service Properties"
-          echo "=========================================="
-
-          SEARCH_RESOURCE_ID=$(cat /tmp/search_resource_id)
-
-
-          az resource show \
-            --ids "$SEARCH_RESOURCE_ID" \
-            --query "{name:name,resourceGroup:resourceGroup,location:location,sku:sku.name,endpoint:properties.endpoint,provisioningState:properties.provisioningState,publicNetworkAccess:properties.publicNetworkAccess}" \
-            --output json
-
-
-      # ======================================================
-      # DIAGNOSTIC 7
-      # Direct REST API
-      #
-      # This bypasses Python SDK.
-      # ======================================================
-
-      - name: Diagnostic - Search REST API
-
-        env:
-
-          AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
-
-          AZURE_SEARCH_API_KEY: ${{ secrets.AZURE_SEARCH_API_KEY }}
-
-        run: |
-
-          echo "=========================================="
-          echo "DIAGNOSTIC 7 - Azure Search REST API"
-          echo "=========================================="
-
-          RESPONSE_FILE="/tmp/search-indexes.json"
-
-
           set +e
 
+          echo "=========================================="
+          echo "AZURE SEARCH HTTP TEST"
+          echo "=========================================="
 
-          HTTP_CODE=$(curl \
+          curl \
             --silent \
             --show-error \
             --location \
-            --max-time 30 \
+            --max-time 20 \
             --connect-timeout 10 \
-            --request GET \
-            --header "api-key: $AZURE_SEARCH_API_KEY" \
-            --header "Content-Type: application/json" \
-            --output "$RESPONSE_FILE" \
-            --write-out "%{http_code}" \
-            "$AZURE_SEARCH_ENDPOINT/indexes?api-version=2025-09-01")
-
+            -o /tmp/search-response.txt \
+            -w "HTTP_STATUS=%{http_code}\nREMOTE_IP=%{remote_ip}\nTIME_TOTAL=%{time_total}\n" \
+            "$AZURE_SEARCH_ENDPOINT"
 
           CURL_EXIT=$?
 
+          echo ""
+          echo "curl exit code: $CURL_EXIT"
+          echo ""
+          echo "Response:"
+          head -c 1000 /tmp/search-response.txt || true
+          echo ""
 
           set -e
 
-
-          echo ""
-
-          echo "curl exit code:"
-          echo "$CURL_EXIT"
-
-          echo ""
-
-          echo "HTTP status:"
-          echo "$HTTP_CODE"
-
-          echo ""
-
-          echo "Response body:"
-
-          cat "$RESPONSE_FILE" || true
-
-          echo ""
-
-
-          if [ "$HTTP_CODE" = "200" ]; then
-
-            echo "SUCCESS:"
-            echo "Azure Search REST API is working."
-
-          elif [ "$HTTP_CODE" = "403" ]; then
-
-            echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-            echo "ROOT CAUSE CANDIDATE"
-            echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-
-            echo ""
-
-            echo "Azure Search returned HTTP 403."
-
-            echo ""
-
-            echo "Likely API key problem."
-
-            echo "Make sure AZURE_SEARCH_API_KEY is an"
-            echo "ADMIN key, not a QUERY key."
-
-            echo ""
-
-            exit 1
-
-          elif [ "$HTTP_CODE" = "404" ]; then
-
-            echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-            echo "ROOT CAUSE CONFIRMED"
-            echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-
-            echo ""
-
-            echo "Azure Search REST API itself returned 404."
-
-            echo ""
-
-            echo "Therefore the problem is NOT:"
-            echo "- Python SDK"
-            echo "- SearchClient"
-            echo "- SearchIndexClient"
-            echo "- agent.py"
-
-            echo ""
-
-            echo "The problem is at Azure Search resource/"
-            echo "endpoint level."
-
-            echo ""
-
-            echo "Check:"
-            echo "1. Search service endpoint"
-            echo "2. Azure subscription"
-            echo "3. Azure tenant"
-            echo "4. Search service existence"
-            echo "5. Public network access"
-            echo "6. Azure cloud/environment"
-
-            echo ""
-
-            exit 1
-
-          else
-
-            echo "Unexpected HTTP status:"
-            echo "$HTTP_CODE"
-
-            exit 1
-
-          fi
-
-
       # ======================================================
-      # DIAGNOSTIC 8
-      # Parse Search Indexes
+      # DIAGNOSTIC 4 - SEARCH INDEXES
       # ======================================================
 
-      - name: Diagnostic - Search Index Names
-
-        run: |
-
-          echo "=========================================="
-          echo "DIAGNOSTIC 8 - Azure Search Index Names"
-          echo "=========================================="
-
-          python - <<'PY'
-
-          import json
-
-          from pathlib import Path
-
-
-          path = Path(
-              "/tmp/search-indexes.json"
-          )
-
-
-          if not path.exists():
-
-              print(
-                  "ERROR: Search index response missing."
-              )
-
-              raise SystemExit(1)
-
-
-          data = json.loads(
-              path.read_text()
-          )
-
-
-          indexes = data.get(
-              "value",
-              []
-          )
-
-
-          print(
-              "Number of indexes:",
-              len(indexes)
-          )
-
-
-          print("")
-
-
-          names = []
-
-
-          for index in indexes:
-
-              name = index.get(
-                  "name"
-              )
-
-              names.append(name)
-
-              print(
-                  "INDEX:",
-                  name
-              )
-
-
-          expected = "${{ secrets.AZURE_SEARCH_INDEX }}"
-
-
-          print("")
-
-          print(
-              "Configured index:",
-              expected
-          )
-
-
-          print("")
-
-
-          if expected in names:
-
-              print(
-                  "SUCCESS: Configured index exists."
-              )
-
-          else:
-
-              print(
-                  "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-              )
-
-              print(
-                  "ROOT CAUSE FOUND"
-              )
-
-              print(
-                  "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-              )
-
-              print("")
-
-              print(
-                  "Configured index does NOT exist."
-              )
-
-              print("")
-
-              print(
-                  "Configured:",
-                  expected
-              )
-
-              print("")
-
-              print(
-                  "Available:",
-                  names
-              )
-
-              raise SystemExit(1)
-
-          PY
-
-
-      # ======================================================
-      # DIAGNOSTIC 9
-      # Python Search SDK
-      # ======================================================
-
-      - name: Diagnostic - Search SDK
-
+      - name: Diagnostic 4 - Azure Search List Indexes
+        timeout-minutes: 5
         env:
-
           AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
-
           AZURE_SEARCH_API_KEY: ${{ secrets.AZURE_SEARCH_API_KEY }}
-
-        run: |
-
-          echo "=========================================="
-          echo "DIAGNOSTIC 9 - Python Search SDK"
-          echo "=========================================="
-
-          python - <<'PY'
-
-          import os
-
-          from azure.core.credentials import AzureKeyCredential
-
-          from azure.search.documents.indexes import SearchIndexClient
-
-
-          endpoint = os.environ[
-              "AZURE_SEARCH_ENDPOINT"
-          ]
-
-
-          api_key = os.environ[
-              "AZURE_SEARCH_API_KEY"
-          ]
-
-
-          client = SearchIndexClient(
-
-              endpoint=endpoint,
-
-              credential=AzureKeyCredential(
-                  api_key
-              )
-
-          )
-
-
-          print(
-              "Calling SearchIndexClient.list_indexes()..."
-          )
-
-
-          indexes = list(
-              client.list_indexes()
-          )
-
-
-          print("")
-
-          print(
-              "SUCCESS: SDK list_indexes() worked."
-          )
-
-
-          print("")
-
-
-          for index in indexes:
-
-              print(
-                  "INDEX:",
-                  index.name
-              )
-
-          PY
-
-
-      # ======================================================
-      # DIAGNOSTIC 10
-      # Specific Index
-      # ======================================================
-
-      - name: Diagnostic - Specific Search Index
-
-        env:
-
-          AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
-
-          AZURE_SEARCH_API_KEY: ${{ secrets.AZURE_SEARCH_API_KEY }}
-
           AZURE_SEARCH_INDEX: ${{ secrets.AZURE_SEARCH_INDEX }}
-
         run: |
-
-          echo "=========================================="
-          echo "DIAGNOSTIC 10 - Specific Search Index"
-          echo "=========================================="
-
           python - <<'PY'
-
           import os
 
           from azure.core.credentials import AzureKeyCredential
-
-          from azure.core.exceptions import ResourceNotFoundError
-
+          from azure.core.exceptions import (
+              ResourceNotFoundError,
+              HttpResponseError,
+              ClientAuthenticationError,
+          )
           from azure.search.documents.indexes import SearchIndexClient
 
+          endpoint = os.environ["AZURE_SEARCH_ENDPOINT"]
+          api_key = os.environ["AZURE_SEARCH_API_KEY"]
+          expected = os.environ["AZURE_SEARCH_INDEX"]
+
+          print("==========================================")
+          print("AZURE SEARCH INDEX DIAGNOSTIC")
+          print("==========================================")
+
+          print("Endpoint:", endpoint)
+          print("Expected index:", expected)
+          print("")
 
           client = SearchIndexClient(
-
-              endpoint=os.environ[
-                  "AZURE_SEARCH_ENDPOINT"
-              ],
-
-              credential=AzureKeyCredential(
-                  os.environ[
-                      "AZURE_SEARCH_API_KEY"
-                  ]
-              )
-
+              endpoint=endpoint,
+              credential=AzureKeyCredential(api_key),
           )
-
-
-          index_name = os.environ[
-              "AZURE_SEARCH_INDEX"
-          ]
-
-
-          print(
-              "Checking index:",
-              index_name
-          )
-
 
           try:
-
-              index = client.get_index(
-                  index_name
-              )
-
-
-              print("")
+              indexes = list(client.list_indexes())
 
               print(
-                  "SUCCESS: Index exists."
+                  "Azure Search service responded successfully."
               )
+              print("")
+              print("Available indexes:")
 
+              names = []
+
+              for index in indexes:
+                  names.append(index.name)
+                  print(" -", index.name)
 
               print("")
+              print("Index count:", len(names))
 
-              print(
-                  "Index:",
-                  index.name
-              )
-
-
-              print("")
-
-              print("Fields:")
-
-
-              for field in index.fields:
-
+              if expected not in names:
+                  print("")
+                  print("ROOT CAUSE:")
                   print(
-                      "-",
-                      field.name,
-                      "|",
-                      field.type
+                      "Configured index does not exist "
+                      "in this Search service."
                   )
 
+                  print("")
+                  print("Configured:", expected)
+                  print("Available:", names)
 
-          except ResourceNotFoundError as error:
-
-              print("")
-
-              print(
-                  "ROOT CAUSE:"
-              )
-
-              print(
-                  "Configured index does not exist."
-              )
+                  raise SystemExit(2)
 
               print("")
+              print("SUCCESS: Configured index exists.")
 
+          except ClientAuthenticationError as error:
+              print("")
+              print(
+                  "ROOT CAUSE: Azure Search authentication failed."
+              )
+              print("")
               print(error)
-
               raise
 
-          PY
+          except ResourceNotFoundError as error:
+              print("")
+              print(
+                  "ROOT CAUSE: Azure Search resource returned 404."
+              )
+              print("")
+              print(error)
+              print("")
+              print("Check AZURE_SEARCH_ENDPOINT first.")
+              print(
+                  "Expected format: "
+                  "https://<service-name>.search.windows.net"
+              )
+              raise
 
+          except HttpResponseError as error:
+              print("")
+              print("Azure Search HTTP error.")
+              print("Status:", error.status_code)
+              print("Message:", error.message)
+              raise
 
       # ======================================================
-      # DIAGNOSTIC 11
-      # Document Count
+      # DIAGNOSTIC 5 - GET INDEX
       # ======================================================
 
-      - name: Diagnostic - Search Document Count
-
+      - name: Diagnostic 5 - Azure Search Get Index
+        timeout-minutes: 5
         env:
-
           AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
-
           AZURE_SEARCH_API_KEY: ${{ secrets.AZURE_SEARCH_API_KEY }}
-
           AZURE_SEARCH_INDEX: ${{ secrets.AZURE_SEARCH_INDEX }}
-
         run: |
-
-          echo "=========================================="
-          echo "DIAGNOSTIC 11 - Search Documents"
-          echo "=========================================="
-
           python - <<'PY'
-
           import os
 
           from azure.core.credentials import AzureKeyCredential
+          from azure.core.exceptions import (
+              ResourceNotFoundError,
+              ClientAuthenticationError,
+              HttpResponseError,
+          )
+          from azure.search.documents.indexes import SearchIndexClient
 
-          from azure.search.documents import SearchClient
+          endpoint = os.environ["AZURE_SEARCH_ENDPOINT"]
+          api_key = os.environ["AZURE_SEARCH_API_KEY"]
+          index_name = os.environ["AZURE_SEARCH_INDEX"]
 
-
-          client = SearchClient(
-
-              endpoint=os.environ[
-                  "AZURE_SEARCH_ENDPOINT"
-              ],
-
-              index_name=os.environ[
-                  "AZURE_SEARCH_INDEX"
-              ],
-
-              credential=AzureKeyCredential(
-                  os.environ[
-                      "AZURE_SEARCH_API_KEY"
-                  ]
-              )
-
+          client = SearchIndexClient(
+              endpoint=endpoint,
+              credential=AzureKeyCredential(api_key),
           )
 
+          print("==========================================")
+          print("GET SEARCH INDEX")
+          print("==========================================")
 
-          count = client.get_document_count()
+          try:
+              index = client.get_index(index_name)
 
+              print("")
+              print("SUCCESS: Index found.")
+              print("Name:", index.name)
 
-          print("")
+              print("")
+              print("Fields:")
 
-          print(
-              "Azure Search document count:",
-              count
-          )
+              for field in index.fields:
+                  print("-", field.name, "|", field.type)
 
-
-          print("")
-
-
-          if count == 0:
-
+          except ResourceNotFoundError as error:
+              print("")
               print(
-                  "WARNING:"
+                  "ROOT CAUSE: Configured index was not found."
               )
+              print("")
+              print("Index:", index_name)
+              print("")
+              print(error)
+              raise
 
+          except ClientAuthenticationError as error:
+              print("")
               print(
-                  "Index exists but contains ZERO documents."
+                  "ROOT CAUSE: Invalid Azure Search API key."
               )
+              print("")
+              print(error)
+              raise
 
-              print(
-                  "RAG retrieval will return no policies."
-              )
-
-          else:
-
-              print(
-                  "SUCCESS:"
-              )
-
-              print(
-                  "Index contains documents."
-              )
-
-              print(
-                  "RAG corpus is populated."
-              )
+          except HttpResponseError as error:
+              print("")
+              print("Azure Search HTTP error.")
+              print("Status:", error.status_code)
+              print("Message:", error.message)
+              raise
 
       # ======================================================
-      # DIAGNOSTIC 12
-      # Search Query
+      # DIAGNOSTIC 6 - SEARCH QUERY
       # ======================================================
 
-      - name: Diagnostic - Search Query
-
+      - name: Diagnostic 6 - Azure Search Query
+        timeout-minutes: 5
         env:
-
           AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
-
           AZURE_SEARCH_API_KEY: ${{ secrets.AZURE_SEARCH_API_KEY }}
-
           AZURE_SEARCH_INDEX: ${{ secrets.AZURE_SEARCH_INDEX }}
-
         run: |
-
-          echo "=========================================="
-          echo "DIAGNOSTIC 12 - Azure Search Query"
-          echo "=========================================="
-
           python - <<'PY'
-
           import os
 
           from azure.core.credentials import AzureKeyCredential
-
+          from azure.core.exceptions import (
+              ResourceNotFoundError,
+              ClientAuthenticationError,
+              HttpResponseError,
+          )
           from azure.search.documents import SearchClient
 
+          endpoint = os.environ["AZURE_SEARCH_ENDPOINT"]
+          api_key = os.environ["AZURE_SEARCH_API_KEY"]
+          index_name = os.environ["AZURE_SEARCH_INDEX"]
 
           client = SearchClient(
+              endpoint=endpoint,
+              index_name=index_name,
+              credential=AzureKeyCredential(api_key),
+          )
 
-              endpoint=os.environ[
-                  "AZURE_SEARCH_ENDPOINT"
-              ],
+          print("==========================================")
+          print("AZURE SEARCH QUERY")
+          print("==========================================")
 
-              index_name=os.environ[
-                  "AZURE_SEARCH_INDEX"
-              ],
-
-              credential=AzureKeyCredential(
-                  os.environ[
-                      "AZURE_SEARCH_API_KEY"
-                  ]
+          try:
+              results = client.search(
+                  search_text="terraform",
+                  top=3,
               )
 
-          )
+              count = 0
 
-
-          print(
-              "Searching for: terraform"
-          )
-
-
-          results = client.search(
-
-              search_text="terraform",
-
-              top=5
-
-          )
-
-
-          count = 0
-
-
-          for result in results:
-
-              count += 1
+              for result in results:
+                  count += 1
+                  print("Document:", result)
 
               print("")
+              print("Documents returned:", count)
 
-              print(
-                  "DOCUMENT",
-                  count
-              )
+              if count == 0:
+                  print("")
+                  print("WARNING:")
+                  print(
+                      "Search works, but index contains "
+                      "no matching documents."
+                  )
+              else:
+                  print("")
+                  print(
+                      "SUCCESS: Azure AI Search query works."
+                  )
 
-              print(
-                  result
-              )
-
-
-          print("")
-
-          print(
-              "Documents returned:",
-              count
-          )
-
-
-          if count == 0:
-
+          except ResourceNotFoundError as error:
               print("")
-
               print(
-                  "WARNING:"
+                  "ROOT CAUSE: Search index/resource not found."
               )
-
-              print(
-                  "Search works but no documents matched."
-              )
-
-          else:
-
               print("")
+              print(error)
+              raise
 
+          except ClientAuthenticationError as error:
+              print("")
               print(
-                  "SUCCESS:"
+                  "ROOT CAUSE: Azure Search authentication failed."
               )
+              print("")
+              print(error)
+              raise
 
-              print(
-                  "Search query returned documents."
-              )
-
-          PY
-
+          except HttpResponseError as error:
+              print("")
+              print("Azure Search HTTP error.")
+              print("Status:", error.status_code)
+              print("Message:", error.message)
+              raise
 
       # ======================================================
-      # DIAGNOSTIC 13
-      # Azure OpenAI Endpoint
+      # DIAGNOSTIC 7 - OPENAI ENDPOINT
       # ======================================================
 
-      - name: Diagnostic - Azure OpenAI Endpoint
-
+      - name: Diagnostic 7 - Azure OpenAI Endpoint
         env:
-
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-
           AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
-
         run: |
-
-          echo "=========================================="
-          echo "DIAGNOSTIC 13 - Azure OpenAI Endpoint"
-          echo "=========================================="
-
           python - <<'PY'
-
           import os
-
           from urllib.parse import urlparse
 
+          endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
+          deployment = os.environ["AZURE_OPENAI_DEPLOYMENT"]
 
-          endpoint = os.environ[
-              "AZURE_OPENAI_ENDPOINT"
-          ]
+          parsed = urlparse(endpoint)
 
+          print("==========================================")
+          print("AZURE OPENAI ENDPOINT")
+          print("==========================================")
 
-          deployment = os.environ[
-              "AZURE_OPENAI_DEPLOYMENT"
-          ]
-
-
-          parsed = urlparse(
-              endpoint
-          )
-
-
-          print(
-              "Endpoint:",
-              endpoint
-          )
-
-
+          print("Endpoint:", endpoint)
+          print("Deployment:", deployment)
           print("")
-
-          print(
-              "Scheme:",
-              parsed.scheme
-          )
-
-
-          print(
-              "Host:",
-              parsed.hostname
-          )
-
-
-          print(
-              "Path:",
-              parsed.path
-          )
-
-
-          print("")
-
-          print(
-              "Deployment:",
-              deployment
-          )
-
+          print("Scheme:", parsed.scheme)
+          print("Host:", parsed.hostname)
+          print("Path:", parsed.path)
 
           if parsed.scheme != "https":
-
-              print(
-                  "ERROR: Azure OpenAI endpoint must use HTTPS."
+              raise SystemExit(
+                  "ERROR: Azure OpenAI endpoint must use HTTPS"
               )
-
-              raise SystemExit(1)
-
 
           if not parsed.hostname:
-
-              print(
-                  "ERROR: Azure OpenAI hostname missing."
+              raise SystemExit(
+                  "ERROR: Azure OpenAI hostname missing"
               )
-
-              raise SystemExit(1)
-
 
           if "/openai/" in parsed.path:
-
-              print("")
-
-              print(
-                  "ERROR: Endpoint contains /openai/ path."
+              raise SystemExit(
+                  "ERROR: Do not put /openai/... path "
+                  "in AZURE_OPENAI_ENDPOINT"
               )
-
-              print("")
-
-              print(
-                  "Use:"
-              )
-
-              print(
-                  "https://<resource>.openai.azure.com/"
-              )
-
-              raise SystemExit(1)
-
 
           print("")
-
-          print(
-              "Azure OpenAI endpoint format looks valid."
-          )
-
+          print("Endpoint format looks valid.")
+          PY
 
       # ======================================================
-      # DIAGNOSTIC 14
-      # Azure OpenAI API
+      # DIAGNOSTIC 8 - OPENAI HTTP
       # ======================================================
 
-      - name: Diagnostic - Azure OpenAI API
-
-        timeout-minutes: 5
-
+      - name: Diagnostic 8 - Azure OpenAI HTTP
         env:
-
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-
-          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
-
-          AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
-
         run: |
+          set +e
 
           echo "=========================================="
-          echo "DIAGNOSTIC 14 - Azure OpenAI API"
+          echo "AZURE OPENAI HTTP TEST"
           echo "=========================================="
 
+          curl \
+            --silent \
+            --show-error \
+            --location \
+            --max-time 20 \
+            --connect-timeout 10 \
+            -o /tmp/openai-response.txt \
+            -w "HTTP_STATUS=%{http_code}\nREMOTE_IP=%{remote_ip}\nTIME_TOTAL=%{time_total}\n" \
+            "$AZURE_OPENAI_ENDPOINT"
+
+          CURL_EXIT=$?
+
+          echo ""
+          echo "curl exit code: $CURL_EXIT"
+          echo ""
+          echo "Response:"
+          head -c 1000 /tmp/openai-response.txt || true
+          echo ""
+
+          set -e
+
+      # ======================================================
+      # DIAGNOSTIC 9 - OPENAI API
+      # ======================================================
+
+      - name: Diagnostic 9 - Azure OpenAI API
+        timeout-minutes: 5
+        env:
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
+        run: |
           python - <<'PY'
-
           import os
 
           from openai import AzureOpenAI
-
           from openai import APIStatusError
-
           from openai import APIConnectionError
 
+          endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
+          api_key = os.environ["AZURE_OPENAI_API_KEY"]
+          deployment = os.environ["AZURE_OPENAI_DEPLOYMENT"]
 
-          endpoint = os.environ[
-              "AZURE_OPENAI_ENDPOINT"
-          ]
+          print("==========================================")
+          print("AZURE OPENAI API TEST")
+          print("==========================================")
 
-
-          api_key = os.environ[
-              "AZURE_OPENAI_API_KEY"
-          ]
-
-
-          deployment = os.environ[
-              "AZURE_OPENAI_DEPLOYMENT"
-          ]
-
+          print("Deployment:", deployment)
 
           client = AzureOpenAI(
-
               azure_endpoint=endpoint,
-
               api_key=api_key,
-
-              api_version="2024-10-21"
-
+              api_version="2024-10-21",
           )
-
-
-          print(
-              "Calling deployment:",
-              deployment
-          )
-
 
           try:
-
               response = client.chat.completions.create(
-
                   model=deployment,
-
                   messages=[
-
                       {
-
                           "role": "user",
-
-                          "content": "Reply with exactly OK"
-
+                          "content": "Reply with exactly OK",
                       }
-
                   ],
-
                   max_tokens=5,
-
                   temperature=0,
-
-                  timeout=30
-
+                  timeout=30,
               )
 
+              result = response.choices[0].message.content
 
               print("")
-
-              print(
-                  "Azure OpenAI response:"
-              )
-
-              print(
-                  response.choices[0].message.content
-              )
-
-
+              print("Response:", result)
               print("")
-
               print(
-                  "SUCCESS: Azure OpenAI API working."
+                  "SUCCESS: Azure OpenAI API is working."
               )
-
 
           except APIStatusError as error:
-
               print("")
-
               print(
-                  "AZURE OPENAI API ERROR"
+                  "ROOT CAUSE: Azure OpenAI API returned an error."
               )
-
               print("")
-
-              print(
-                  "Status:",
-                  error.status_code
-              )
-
+              print("HTTP Status:", error.status_code)
+              print("Error:", error)
               print("")
-
-              print(
-                  "Error:",
-                  error
-              )
-
-              print("")
-
-              print(
-                  "Possible causes:"
-              )
-
-              print(
-                  "1. Wrong deployment name"
-              )
-
-              print(
-                  "2. Wrong endpoint"
-              )
-
-              print(
-                  "3. Invalid API key"
-              )
-
-              print(
-                  "4. Wrong API version"
-              )
-
-              print(
-                  "5. Deployment does not exist"
-              )
-
+              print("Check:")
+              print("1. Deployment name")
+              print("2. Endpoint")
+              print("3. API key")
+              print("4. API version")
+              print("5. Model deployment")
               raise
-
 
           except APIConnectionError as error:
-
               print("")
-
               print(
-                  "AZURE OPENAI CONNECTION ERROR"
+                  "ROOT CAUSE: Cannot connect to Azure OpenAI."
               )
-
               print("")
-
               print(error)
-
               raise
 
-
       # ======================================================
-      # DIAGNOSTIC 15
-      # Python Environment
+      # DIAGNOSTIC 10 - PYTHON ENVIRONMENT
       # ======================================================
 
-      - name: Diagnostic - Python Environment
-
+      - name: Diagnostic 10 - Python Environment
         run: |
-
           echo "=========================================="
-          echo "DIAGNOSTIC 15 - Python Environment"
+          echo "PYTHON ENVIRONMENT"
           echo "=========================================="
 
           python --version
-
-          echo ""
-
           python -m pip --version
 
           echo ""
-
-          echo "Installed Azure/OpenAI packages:"
-
-          python -m pip list | grep -Ei \
-            "azure|openai" || true
-
-          echo ""
-
-          echo "Python executable:"
-
-          which python
-
+          echo "Azure/OpenAI packages:"
+          python -m pip list | grep -Ei "azure|openai" || true
 
       # ======================================================
-      # Run Terraform AI Reviewer
+      # RUN AI REVIEWER
       # ======================================================
 
       - name: Run Terraform AI Reviewer
-
         timeout-minutes: 15
-
         env:
-
           AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
-
           AZURE_SEARCH_API_KEY: ${{ secrets.AZURE_SEARCH_API_KEY }}
-
           AZURE_SEARCH_INDEX: ${{ secrets.AZURE_SEARCH_INDEX }}
-
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-
           AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
-
           AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
-
         run: |
-
-          echo "=========================================="
-          echo "Running Terraform AI Reviewer"
-          echo "=========================================="
-
-          echo ""
-
-          echo "Terraform Plan:"
-          ls -lh parent_module/tfplan.json
-
-          echo ""
-
-          echo "Executing agent.py..."
-
-          echo ""
-
-          echo "AI Reviewer hard timeout: 15 minutes"
-
-
           set +e
 
+          echo "=========================================="
+          echo "RUNNING TERRAFORM AI REVIEWER"
+          echo "=========================================="
 
           timeout \
             --signal=TERM \
@@ -2018,505 +1031,243 @@ jobs:
             > ai-review-output.txt \
             2> ai-review-error.log
 
-
           EXIT_CODE=$?
 
+          echo ""
+          echo "Agent Exit Code: $EXIT_CODE"
+
+          echo ""
+          echo "========== AGENT STDOUT =========="
+          cat ai-review-output.txt || true
+
+          echo ""
+          echo "========== AGENT STDERR =========="
+          cat ai-review-error.log || true
 
           set -e
 
-
-          echo ""
-
-          echo "Agent Exit Code:"
-          echo "$EXIT_CODE"
-
-
-          echo ""
-
-          echo "=========================================="
-          echo "Agent STDOUT"
-          echo "=========================================="
-
-
-          cat ai-review-output.txt || true
-
-
-          echo ""
-
-          echo "=========================================="
-          echo "Agent STDERR"
-          echo "=========================================="
-
-
-          cat ai-review-error.log || true
-
-
-          if [ "$EXIT_CODE" -eq 124 ]; then
-
-            echo ""
-
-            echo "AI Reviewer exceeded 15 minutes."
-
-            exit 124
-
-          fi
-
-
-          if [ "$EXIT_CODE" -eq 143 ] || [ "$EXIT_CODE" -eq 137 ]; then
-
-            echo ""
-
-            echo "AI Reviewer process terminated."
-
-            echo "Exit Code:"
-            echo "$EXIT_CODE"
-
-            exit "$EXIT_CODE"
-
-          fi
-
-
           if [ "$EXIT_CODE" -ne 0 ]; then
-
             echo ""
-
-            echo "=========================================="
-            echo "AI REVIEWER FAILED"
-            echo "=========================================="
-
-            echo ""
-
-            echo "Exit Code:"
-            echo "$EXIT_CODE"
-
-            echo ""
-
-            echo "STDERR:"
-            cat ai-review-error.log || true
-
-            echo ""
-
-            echo "STDOUT:"
-            cat ai-review-output.txt || true
-
+            echo "AI Reviewer failed."
             exit "$EXIT_CODE"
-
           fi
 
-
           echo ""
-
-          echo "=========================================="
-          echo "AI REVIEWER COMPLETED"
-          echo "=========================================="
-
+          echo "AI Reviewer completed successfully."
 
       # ======================================================
-      # Prepare AI Review JSON
+      # PREPARE AI JSON
       # ======================================================
 
       - name: Prepare AI Review JSON
-
         run: |
-
           python - <<'PY'
-
           import json
-
           from pathlib import Path
 
-
-          output_file = Path(
-              "ai-review-output.txt"
-          )
-
+          output_file = Path("ai-review-output.txt")
 
           if not output_file.exists():
-
-              print(
-                  "AI output file not found."
+              raise SystemExit(
+                  "AI output file not found"
               )
-
-              raise SystemExit(1)
-
 
           output = output_file.read_text(
               errors="replace"
           ).strip()
 
-
-          print(
-              "AI output length:",
-              len(output)
-          )
-
-
           if not output:
-
-              print(
-                  "AI reviewer returned empty output."
+              raise SystemExit(
+                  "AI reviewer returned empty output"
               )
-
-              raise SystemExit(1)
-
 
           try:
-
-              data = json.loads(
-                  output
-              )
-
+              data = json.loads(output)
 
           except json.JSONDecodeError:
-
-              print(
-                  "Direct JSON parsing failed."
-              )
-
-              print(
-                  "Trying to extract JSON object..."
-              )
-
-
               start = output.find("{")
-
               end = output.rfind("}")
 
-
-              if (
-
-                  start == -1
-
-                  or end == -1
-
-                  or end <= start
-
-              ):
-
-                  print(
-                      "Could not find JSON object."
-                  )
-
+              if start == -1 or end == -1:
                   print(output)
-
-                  raise SystemExit(1)
-
-
-              json_text = output[
-                  start:end + 1
-              ]
-
-
-              try:
-
-                  data = json.loads(
-                      json_text
+                  raise SystemExit(
+                      "Could not find JSON object"
                   )
 
-              except json.JSONDecodeError as error:
-
-                  print(
-                      "Extracted JSON is invalid."
-                  )
-
-                  print(error)
-
-                  print(json_text)
-
-                  raise SystemExit(1)
-
-
-          Path(
-              "ai-review.json"
-          ).write_text(
-
-              json.dumps(
-                  data,
-                  indent=2
+              data = json.loads(
+                  output[start:end + 1]
               )
 
+          Path("ai-review.json").write_text(
+              json.dumps(data, indent=2)
           )
 
-
-          print("")
-
+          print("ai-review.json created.")
           print(
-              "ai-review.json created successfully."
+              json.dumps(data, indent=2)
           )
-
-          print("")
-
-          print(
-              json.dumps(
-                  data,
-                  indent=2
-              )
-          )
-
           PY
 
-
       # ======================================================
-      # Validate AI Review JSON
+      # VALIDATE AI JSON
       # ======================================================
 
       - name: Validate AI Review JSON
-
         run: |
-
           python - <<'PY'
-
           import json
 
-
-          with open(
-              "ai-review.json"
-          ) as f:
-
+          with open("ai-review.json") as f:
               data = json.load(f)
 
-
           print("==========================================")
-          print("AI Review JSON Validation")
+          print("AI REVIEW")
           print("==========================================")
-
-
-          print(
-              "Valid JSON"
-          )
-
-
-          print("")
-
 
           print(
               "Risk Level:",
-              data.get(
-                  "risk_level",
-                  "UNKNOWN"
-              )
+              data.get("risk_level", "UNKNOWN")
           )
-
 
           print(
               "Risk Score:",
-              data.get(
-                  "risk_score",
-                  0
-              )
+              data.get("risk_score", 0)
           )
-
 
           print(
               "Decision:",
-              data.get(
-                  "decision",
-                  "UNKNOWN"
-              )
+              data.get("decision", "UNKNOWN")
           )
-
 
           print("")
+          print("Security Signals:")
 
-          print(
-              "Security Signals:"
-          )
-
-
-          signals = data.get(
+          for signal in data.get(
               "security_signals",
               []
-          )
-
-
-          if signals:
-
-              for signal in signals:
-
-                  print(
-                      "-",
-                      signal
-                  )
-
-          else:
-
-              print(
-                  "No security signals detected."
-              )
-
+          ):
+              print("-", signal)
           PY
 
-
       # ======================================================
-      # Display Final AI Review
+      # DISPLAY REVIEW
       # ======================================================
 
       - name: Display AI Review
-
         run: |
-
           echo "=========================================="
-          echo "Final AI Review"
+          echo "FINAL AI REVIEW"
           echo "=========================================="
 
           cat ai-review.json
 
-
       # ======================================================
-      # Extract Risk Information
+      # EXTRACT RISK
       # ======================================================
 
       - name: Extract Risk Information
-
         id: risk
-
         run: |
-
-          RISK_LEVEL=$(python -c "
-
+          RISK_LEVEL=$(python -c '
           import json
-
-          with open('ai-review.json') as f:
-
-              data = json.load(f)
-
           print(
-              data.get(
-                  'risk_level',
-                  'UNKNOWN'
+              json.load(
+                  open("ai-review.json")
+              ).get(
+                  "risk_level",
+                  "UNKNOWN"
               )
           )
+          ')
 
-          ")
-
-
-          RISK_SCORE=$(python -c "
-
+          RISK_SCORE=$(python -c '
           import json
-
-          with open('ai-review.json') as f:
-
-              data = json.load(f)
-
           print(
-              data.get(
-                  'risk_score',
+              json.load(
+                  open("ai-review.json")
+              ).get(
+                  "risk_score",
                   0
               )
           )
+          ')
 
-          ")
-
-
-          DECISION=$(python -c "
-
+          DECISION=$(python -c '
           import json
-
-          with open('ai-review.json') as f:
-
-              data = json.load(f)
-
           print(
-              data.get(
-                  'decision',
-                  'UNKNOWN'
+              json.load(
+                  open("ai-review.json")
+              ).get(
+                  "decision",
+                  "UNKNOWN"
               )
           )
-
-          ")
-
-
-          echo ""
+          ')
 
           echo "Risk Level: $RISK_LEVEL"
-
           echo "Risk Score: $RISK_SCORE"
-
           echo "Decision: $DECISION"
 
-          echo ""
-
-
           echo "risk_level=$RISK_LEVEL" >> "$GITHUB_OUTPUT"
-
           echo "risk_score=$RISK_SCORE" >> "$GITHUB_OUTPUT"
-
           echo "decision=$DECISION" >> "$GITHUB_OUTPUT"
 
-
       # ======================================================
-      # Create PR Comment
+      # CREATE PR REPORT
       # ======================================================
 
       - name: Create AI Review Report
-
         run: |
-
           python - <<'PY'
-
           import json
 
-
-          with open(
-              "ai-review.json"
-          ) as f:
-
+          with open("ai-review.json") as f:
               data = json.load(f)
-
 
           risk_level = data.get(
               "risk_level",
               "UNKNOWN"
           )
 
-
           risk_score = data.get(
               "risk_score",
               0
           )
-
-
-          destroy_count = data.get(
-              "destroy_count",
-              0
-          )
-
 
           create_count = data.get(
               "create_count",
               0
           )
 
-
           update_count = data.get(
               "update_count",
               0
           )
 
+          destroy_count = data.get(
+              "destroy_count",
+              0
+          )
 
           signals = data.get(
               "security_signals",
               []
           )
 
-
           llm_review = data.get(
               "llm_review",
               {}
           )
-
 
           summary = llm_review.get(
               "summary",
               "No LLM summary available."
           )
 
-
           recommendations = llm_review.get(
               "recommendations",
               []
           )
-
 
           with open(
               "pr-comment.md",
@@ -2527,247 +1278,153 @@ jobs:
                   "# 🤖 Terraform AI Security Review\n\n"
               )
 
-
               f.write(
                   f"## Risk: **{risk_level}** "
                   f"({risk_score}/100)\n\n"
               )
 
-
               f.write(
                   "### Terraform Changes\n\n"
               )
-
 
               f.write(
                   f"- Create: **{create_count}**\n"
               )
 
-
               f.write(
                   f"- Update: **{update_count}**\n"
               )
-
 
               f.write(
                   f"- Destroy: **{destroy_count}**\n\n"
               )
 
-
               f.write(
                   "### Security Signals\n\n"
               )
 
-
               if signals:
-
                   for signal in signals:
-
                       f.write(
-
-                          f"- **{signal.get('type', 'UNKNOWN')}** — "
-                          f"{signal.get('severity', 'UNKNOWN')} — "
-                          f"{signal.get('reason', 'No reason provided')}  \n"
-
+                          f"- **{signal.get('type', 'UNKNOWN')}** "
+                          f"— {signal.get('severity', 'UNKNOWN')} "
+                          f"— {signal.get('reason', 'No reason provided')}  \n"
                       )
-
               else:
-
                   f.write(
-                      "No security signals detected.  \n"
+                      "No security signals detected.\n"
                   )
-
 
               f.write(
                   "\n### AI Assessment\n\n"
               )
 
-
-              f.write(
-                  str(summary)
-              )
-
+              f.write(str(summary))
 
               f.write(
                   "\n\n### Recommendations\n\n"
               )
 
-
               if recommendations:
-
                   for recommendation in recommendations:
-
                       f.write(
                           f"- {recommendation}\n"
                       )
-
               else:
-
                   f.write(
                       "- No additional recommendations.\n"
                   )
-
 
               f.write(
                   "\n---\n"
                   "Generated by Terraform AI Security Reviewer."
               )
-
           PY
 
-
       # ======================================================
-      # Comment on Pull Request
+      # PR COMMENT
       # ======================================================
 
       - name: Comment on Pull Request
-
         if: github.event_name == 'pull_request'
-
         env:
-
           GH_TOKEN: ${{ github.token }}
-
         run: |
-
           gh pr comment \
             "${{ github.event.pull_request.number }}" \
             --body-file pr-comment.md
 
-
       # ======================================================
-      # AI Security Gate
+      # AI SECURITY GATE
       # ======================================================
 
       - name: Enforce AI Security Gate
-
         run: |
-
           RISK_LEVEL="${{ steps.risk.outputs.risk_level }}"
-
           RISK_SCORE="${{ steps.risk.outputs.risk_score }}"
 
-          DECISION="${{ steps.risk.outputs.decision }}"
-
-
           echo "=========================================="
-          echo "AI Security Gate"
+          echo "AI SECURITY GATE"
           echo "=========================================="
-
-
-          echo ""
 
           echo "Risk Level : $RISK_LEVEL"
-
           echo "Risk Score : $RISK_SCORE"
 
-          echo "Decision   : $DECISION"
-
-
           if [ "$RISK_LEVEL" = "HIGH" ]; then
-
             echo ""
-
             echo "HIGH RISK DETECTED"
-
-            echo ""
-
-            echo "Terraform deployment blocked."
-
-            echo "Manual security review required."
-
+            echo "Deployment blocked."
             exit 1
-
           fi
-
 
           if [ "$RISK_LEVEL" = "MEDIUM" ]; then
-
             echo ""
-
             echo "MEDIUM RISK"
-
             echo "Review recommended."
-
-            echo "Pipeline will continue."
-
           fi
-
 
           if [ "$RISK_LEVEL" = "LOW" ]; then
-
             echo ""
-
             echo "LOW RISK"
-
             echo "Pipeline can continue."
-
           fi
 
-
       # ======================================================
-      # Upload AI Review
+      # UPLOAD REVIEW
       # ======================================================
 
       - name: Upload AI Review
-
         if: always()
-
         uses: actions/upload-artifact@v4
-
         with:
-
           name: terraform-ai-review
-
           path: |
-
             ai-review.json
-
             ai-review-output.txt
-
             ai-review-error.log
-
             pr-comment.md
-
           if-no-files-found: warn
 
-
-  # ==========================================================
-  # Stage 4 - Terraform Apply
-  # ==========================================================
+# ============================================================
+# STAGE 4 - TERRAFORM APPLY
+# ============================================================
 
   apply:
 
     name: Terraform Apply
-
     runs-on: ubuntu-latest
-
     timeout-minutes: 30
 
     needs:
-
       - ai-review
 
-
-    # --------------------------------------------------------
     # Apply ONLY after merge/push to main
-    # --------------------------------------------------------
-
     if: >
-
       github.event_name == 'push' &&
-
       github.ref == 'refs/heads/main'
 
-
-    # --------------------------------------------------------
-    # Production Environment Approval
-    # --------------------------------------------------------
-
     environment:
-
       name: production
-
 
     steps:
 
@@ -2776,136 +1433,107 @@ jobs:
       # ------------------------------------------------------
 
       - name: Checkout Repository
-
         uses: actions/checkout@v4
-
 
       # ------------------------------------------------------
       # Terraform
       # ------------------------------------------------------
 
       - name: Setup Terraform
-
         uses: hashicorp/setup-terraform@v3
-
         with:
+          terraform_version: ${{ env.TF_VERSION }}
 
-          terraform_version: "1.15.8"
+      - name: Terraform Version
+        run: terraform version
 
-
-      # ------------------------------------------------------
-      # Azure Login
-      # ------------------------------------------------------
+      # ======================================================
+      # AZURE LOGIN
+      # ======================================================
 
       - name: Azure Login
-
         uses: azure/login@v2
-
         with:
-
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
-
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
+          environment: AzureCloud
 
       # ------------------------------------------------------
-      # Azure Account Diagnostics
+      # Verify Azure Login
       # ------------------------------------------------------
 
-      - name: Azure Account Diagnostics
-
+      - name: Verify Azure Login
+        shell: bash
         run: |
+          set -e
 
           echo "=========================================="
-          echo "Azure Account Diagnostics"
+          echo "APPLY - AZURE LOGIN"
           echo "=========================================="
 
           az account show \
-            --query "{subscriptionId:id,subscriptionName:name,tenantId:tenantId,user:user.name}" \
-            --output table
+            --query "{subscription:id,tenant:tenantId,name:name}" \
+            --output json
 
+          echo ""
+          echo "Azure authentication successful."
 
       # ------------------------------------------------------
       # Download Reviewed Terraform Plan
       # ------------------------------------------------------
 
       - name: Download Reviewed Terraform Plan
-
         uses: actions/download-artifact@v4
-
         with:
-
           name: terraform-plan
-
           path: parent_module
 
-
       # ------------------------------------------------------
-      # Verify Reviewed Plan
+      # Verify Plan
       # ------------------------------------------------------
 
       - name: Verify Terraform Plan
-
         run: |
+          set -e
 
           echo "=========================================="
-          echo "Reviewed Terraform Plan"
+          echo "REVIEWED TERRAFORM PLAN"
           echo "=========================================="
 
           ls -lh parent_module/
 
-
           test -f parent_module/tfplan
 
-
           echo ""
-
           echo "Reviewed tfplan found successfully."
-
 
       # ------------------------------------------------------
       # Terraform Init
       # ------------------------------------------------------
 
       - name: Terraform Init
-
         working-directory: parent_module
-
-        run: |
-
-          terraform init
-
+        run: terraform init
 
       # ------------------------------------------------------
-      # Terraform Apply
-      #
-      # IMPORTANT:
-      #
-      # Apply EXACT plan reviewed by AI.
-      #
-      # Do NOT create a new plan here.
+      # Apply EXACT reviewed plan
       # ------------------------------------------------------
 
       - name: Terraform Apply
-
         working-directory: parent_module
-
         run: |
-
           echo "=========================================="
-          echo "Terraform Apply"
+          echo "TERRAFORM APPLY"
           echo "=========================================="
 
           echo ""
-
-          echo "Applying AI-reviewed Terraform plan..."
+          echo "Applying exact Terraform plan reviewed by AI..."
 
           terraform apply \
             -auto-approve \
             tfplan
 
           echo ""
-
           echo "Terraform Apply completed successfully."
+```
