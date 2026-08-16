@@ -43,6 +43,7 @@ jobs:
       # ------------------------------------------------------
 
       - name: Checkout Repository
+
         uses: actions/checkout@v4
 
 
@@ -51,13 +52,18 @@ jobs:
       # ------------------------------------------------------
 
       - name: Setup Terraform
+
         uses: hashicorp/setup-terraform@v3
+
         with:
+
           terraform_version: "1.15.8"
 
 
       - name: Terraform Version
+
         run: |
+
           terraform version
 
 
@@ -66,7 +72,9 @@ jobs:
       # ------------------------------------------------------
 
       - name: Terraform Format Check
+
         run: |
+
           terraform fmt -check -recursive
 
 
@@ -75,8 +83,11 @@ jobs:
       # ------------------------------------------------------
 
       - name: Terraform Init
+
         working-directory: parent_module
+
         run: |
+
           terraform init
 
 
@@ -85,8 +96,11 @@ jobs:
       # ------------------------------------------------------
 
       - name: Terraform Validate
+
         working-directory: parent_module
+
         run: |
+
           terraform validate
 
 
@@ -95,13 +109,18 @@ jobs:
       # ======================================================
 
       - name: Install Gitleaks
+
         run: |
+
           sudo apt-get update
+
           sudo apt-get install -y gitleaks
 
 
       - name: Run Gitleaks
+
         run: |
+
           gitleaks detect \
             --source . \
             --exit-code 1
@@ -112,14 +131,18 @@ jobs:
       # ======================================================
 
       - name: Install TruffleHog
+
         run: |
+
           curl -sSfL \
             https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \
             | sh -s -- -b /usr/local/bin
 
 
       - name: Run TruffleHog
+
         run: |
+
           trufflehog filesystem . --json > trufflehog-report.json
 
 
@@ -128,16 +151,22 @@ jobs:
       # ======================================================
 
       - name: Install TFLint
+
         run: |
+
           curl -s \
             https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh \
             | bash
 
 
       - name: Run TFLint
+
         working-directory: parent_module
+
         run: |
+
           tflint --init
+
           tflint
 
 
@@ -146,15 +175,20 @@ jobs:
       # ======================================================
 
       - name: Install tfsec
+
         run: |
+
           curl -s \
             https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh \
             | bash
 
 
       - name: Run tfsec
+
         working-directory: parent_module
+
         run: |
+
           tfsec .
 
 
@@ -168,9 +202,10 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     needs:
+
       - security-scan
 
     steps:
@@ -180,6 +215,7 @@ jobs:
       # ------------------------------------------------------
 
       - name: Checkout Repository
+
         uses: actions/checkout@v4
 
 
@@ -188,8 +224,11 @@ jobs:
       # ------------------------------------------------------
 
       - name: Setup Terraform
+
         uses: hashicorp/setup-terraform@v3
+
         with:
+
           terraform_version: "1.15.8"
 
 
@@ -198,10 +237,15 @@ jobs:
       # ------------------------------------------------------
 
       - name: Azure Login
+
         uses: azure/login@v2
+
         with:
+
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
+
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
 
@@ -210,8 +254,11 @@ jobs:
       # ------------------------------------------------------
 
       - name: Terraform Init
+
         working-directory: parent_module
+
         run: |
+
           terraform init
 
 
@@ -220,8 +267,11 @@ jobs:
       # ------------------------------------------------------
 
       - name: Terraform Plan
+
         working-directory: parent_module
+
         run: |
+
           terraform plan -out=tfplan
 
 
@@ -230,8 +280,11 @@ jobs:
       # ------------------------------------------------------
 
       - name: Terraform Show JSON
+
         working-directory: parent_module
+
         run: |
+
           terraform show -json tfplan > tfplan.json
 
 
@@ -240,20 +293,29 @@ jobs:
       # ------------------------------------------------------
 
       - name: Verify Terraform Plan
+
         run: |
 
           echo "=========================================="
+
           echo "Terraform Plan Verification"
+
           echo "=========================================="
 
+
           ls -lh parent_module/tfplan
+
           ls -lh parent_module/tfplan.json
 
+
           test -f parent_module/tfplan
+
           test -f parent_module/tfplan.json
 
+
           echo ""
-          echo "✅ Terraform plan generated successfully"
+
+          echo "Terraform plan generated successfully"
 
 
       # ------------------------------------------------------
@@ -261,11 +323,17 @@ jobs:
       # ------------------------------------------------------
 
       - name: Upload Terraform Plan
+
         uses: actions/upload-artifact@v4
+
         with:
+
           name: terraform-plan
+
           path: |
+
             parent_module/tfplan
+
             parent_module/tfplan.json
 
 
@@ -279,9 +347,10 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     needs:
+
       - plan
 
     steps:
@@ -291,6 +360,7 @@ jobs:
       # ------------------------------------------------------
 
       - name: Checkout Repository
+
         uses: actions/checkout@v4
 
 
@@ -299,8 +369,11 @@ jobs:
       # ------------------------------------------------------
 
       - name: Setup Python
+
         uses: actions/setup-python@v5
+
         with:
+
           python-version: "3.11"
 
 
@@ -309,6 +382,7 @@ jobs:
       # ------------------------------------------------------
 
       - name: Install Python Dependencies
+
         run: |
 
           python -m pip install --upgrade pip
@@ -321,9 +395,13 @@ jobs:
       # ------------------------------------------------------
 
       - name: Download Terraform Plan
+
         uses: actions/download-artifact@v4
+
         with:
+
           name: terraform-plan
+
           path: parent_module
 
 
@@ -332,18 +410,25 @@ jobs:
       # ------------------------------------------------------
 
       - name: Verify Terraform Plan
+
         run: |
 
           echo "=========================================="
+
           echo "Terraform Plan Verification"
+
           echo "=========================================="
+
 
           ls -lh parent_module/
 
+
           test -f parent_module/tfplan.json
 
+
           echo ""
-          echo "✅ tfplan.json found"
+
+          echo "tfplan.json found successfully"
 
 
       # ------------------------------------------------------
@@ -351,21 +436,28 @@ jobs:
       # ------------------------------------------------------
 
       - name: Verify AI Agent
+
         run: |
 
           echo "=========================================="
+
           echo "AI Agent Verification"
+
           echo "=========================================="
+
 
           echo ""
 
           ls -lh agent/
 
+
           echo ""
 
           test -f agent/agent.py
 
-          echo "✅ agent.py found"
+
+          echo "agent.py found"
+
 
           echo ""
 
@@ -377,20 +469,31 @@ jobs:
       # ------------------------------------------------------
 
       - name: Verify Python Packages
+
         run: |
 
           echo "=========================================="
+
           echo "Python Package Verification"
+
           echo "=========================================="
 
+
           python -c "
+
           import openai
+
           import azure.core
+
           import azure.search.documents
 
-          print('✅ openai import OK')
-          print('✅ azure.core import OK')
-          print('✅ azure.search.documents import OK')
+
+          print('openai import OK')
+
+          print('azure.core import OK')
+
+          print('azure.search.documents import OK')
+
           "
 
 
@@ -399,6 +502,7 @@ jobs:
       # ------------------------------------------------------
 
       - name: Verify Azure Configuration
+
         env:
 
           AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
@@ -414,13 +518,15 @@ jobs:
         run: |
 
           echo "=========================================="
+
           echo "Azure Configuration"
+
           echo "=========================================="
 
 
           if [ -z "$AZURE_SEARCH_ENDPOINT" ]; then
 
-            echo "❌ AZURE_SEARCH_ENDPOINT missing"
+            echo "AZURE_SEARCH_ENDPOINT missing"
 
             exit 1
 
@@ -429,7 +535,7 @@ jobs:
 
           if [ -z "$AZURE_SEARCH_API_KEY" ]; then
 
-            echo "❌ AZURE_SEARCH_API_KEY missing"
+            echo "AZURE_SEARCH_API_KEY missing"
 
             exit 1
 
@@ -438,7 +544,7 @@ jobs:
 
           if [ -z "$AZURE_OPENAI_ENDPOINT" ]; then
 
-            echo "❌ AZURE_OPENAI_ENDPOINT missing"
+            echo "AZURE_OPENAI_ENDPOINT missing"
 
             exit 1
 
@@ -447,7 +553,7 @@ jobs:
 
           if [ -z "$AZURE_OPENAI_API_KEY" ]; then
 
-            echo "❌ AZURE_OPENAI_API_KEY missing"
+            echo "AZURE_OPENAI_API_KEY missing"
 
             exit 1
 
@@ -456,29 +562,21 @@ jobs:
 
           if [ -z "$AZURE_OPENAI_DEPLOYMENT" ]; then
 
-            echo "❌ AZURE_OPENAI_DEPLOYMENT missing"
+            echo "AZURE_OPENAI_DEPLOYMENT missing"
 
             exit 1
 
           fi
 
 
-          echo "✅ Azure configuration present"
+          echo ""
+
+          echo "Azure configuration present"
 
 
-      # ------------------------------------------------------
+      # ======================================================
       # Run Terraform AI Reviewer
-      #
-      # IMPORTANT:
-      #
-      # timeout 10m prevents agent.py from hanging forever.
-      #
-      # STDOUT -> ai-review-output.txt
-      #
-      # STDERR -> ai-review-error.log
-      #
-      # This allows us to debug Azure Search/OpenAI issues.
-      # ------------------------------------------------------
+      # ======================================================
 
       - name: Run Terraform AI Reviewer
 
@@ -497,13 +595,16 @@ jobs:
         run: |
 
           echo "=========================================="
+
           echo "Running Terraform AI Reviewer"
+
           echo "=========================================="
 
 
           echo ""
 
           echo "Plan:"
+
           ls -lh parent_module/tfplan.json
 
 
@@ -511,16 +612,36 @@ jobs:
 
           echo "Executing agent.py..."
 
-          echo "AI Reviewer timeout: 10 minutes"
+
+          echo ""
+
+          echo "AI Reviewer hard timeout: 15 minutes"
 
 
-          timeout 10m \
-            python agent/agent.py parent_module/tfplan.json \
+          # --------------------------------------------------
+          # IMPORTANT
+          #
+          # GitHub Actions runs bash with -e.
+          #
+          # If timeout returns 124, bash would normally stop
+          # immediately before EXIT_CODE=$? executes.
+          #
+          # Therefore temporarily disable -e.
+          # --------------------------------------------------
+
+          set +e
+
+
+          timeout --signal=TERM --kill-after=30s 15m \
+            python -u agent/agent.py parent_module/tfplan.json \
             > ai-review-output.txt \
             2> ai-review-error.log
 
 
           EXIT_CODE=$?
+
+
+          set -e
 
 
           echo ""
@@ -529,8 +650,11 @@ jobs:
 
 
           echo ""
+
           echo "=========================================="
+
           echo "Agent STDOUT"
+
           echo "=========================================="
 
 
@@ -538,8 +662,11 @@ jobs:
 
 
           echo ""
+
           echo "=========================================="
+
           echo "Agent STDERR"
+
           echo "=========================================="
 
 
@@ -553,26 +680,82 @@ jobs:
           if [ "$EXIT_CODE" -eq 124 ]; then
 
             echo ""
+
             echo "=========================================="
-            echo "⏰ AI Reviewer Timeout"
+
+            echo "AI Reviewer Timeout"
+
             echo "=========================================="
+
 
             echo ""
 
-            echo "agent.py exceeded 10 minutes."
+            echo "agent.py exceeded the 15 minute timeout."
+
 
             echo ""
 
             echo "Possible causes:"
+
+
             echo "1. Azure AI Search request hanging"
+
             echo "2. Azure OpenAI request hanging"
-            echo "3. Network connectivity issue"
+
+            echo "3. Azure network connectivity"
+
             echo "4. Invalid Azure endpoint"
-            echo "5. SDK retry loop"
+
+            echo "5. Azure SDK retry loop"
+
+            echo "6. LLM deployment response delay"
+
 
             echo ""
 
+            echo "Agent STDERR:"
+
+            cat ai-review-error.log || true
+
+
+            echo ""
+
+            echo "Agent STDOUT:"
+
+            cat ai-review-output.txt || true
+
+
             exit 124
+
+          fi
+
+
+          # --------------------------------------------------
+          # SIGTERM / SIGKILL
+          # --------------------------------------------------
+
+          if [ "$EXIT_CODE" -eq 143 ] || [ "$EXIT_CODE" -eq 137 ]; then
+
+            echo ""
+
+            echo "=========================================="
+
+            echo "AI Reviewer Process Terminated"
+
+            echo "=========================================="
+
+
+            echo "Exit Code: $EXIT_CODE"
+
+
+            echo ""
+
+            echo "Agent STDERR:"
+
+            cat ai-review-error.log || true
+
+
+            exit "$EXIT_CODE"
 
           fi
 
@@ -584,19 +767,32 @@ jobs:
           if [ "$EXIT_CODE" -ne 0 ]; then
 
             echo ""
+
             echo "=========================================="
-            echo "❌ AI Reviewer Failed"
+
+            echo "AI Reviewer Failed"
+
             echo "=========================================="
+
+
+            echo ""
+
+            echo "Exit Code: $EXIT_CODE"
+
 
             echo ""
 
             echo "STDERR:"
+
             cat ai-review-error.log || true
+
 
             echo ""
 
             echo "STDOUT:"
+
             cat ai-review-output.txt || true
+
 
             exit "$EXIT_CODE"
 
@@ -604,18 +800,20 @@ jobs:
 
 
           echo ""
+
           echo "=========================================="
-          echo "✅ AI Reviewer Completed"
+
+          echo "AI Reviewer Completed Successfully"
+
           echo "=========================================="
 
 
-      # ------------------------------------------------------
+      # ======================================================
       # Prepare AI Review JSON
-      #
-      # Handles cases where agent.py prints logs before JSON.
-      # ------------------------------------------------------
+      # ======================================================
 
       - name: Prepare AI Review JSON
+
         run: |
 
           python - <<'PY'
@@ -625,9 +823,21 @@ jobs:
           from pathlib import Path
 
 
-          output = Path(
+          output_file = Path(
               "ai-review-output.txt"
-          ).read_text().strip()
+          )
+
+
+          if not output_file.exists():
+
+              print("AI output file not found")
+
+              raise SystemExit(1)
+
+
+          output = output_file.read_text(
+              errors="replace"
+          ).strip()
 
 
           print(
@@ -636,9 +846,18 @@ jobs:
           )
 
 
-          # -----------------------------------------------
+          if not output:
+
+              print(
+                  "AI reviewer returned empty output"
+              )
+
+              raise SystemExit(1)
+
+
+          # --------------------------------------------------
           # Try complete output as JSON
-          # -----------------------------------------------
+          # --------------------------------------------------
 
           try:
 
@@ -662,13 +881,17 @@ jobs:
 
 
               if (
+
                   start == -1
+
                   or end == -1
+
                   or end <= start
+
               ):
 
                   print(
-                      "❌ Could not find JSON object"
+                      "Could not find JSON object"
                   )
 
                   print(output)
@@ -687,10 +910,11 @@ jobs:
                       json_text
                   )
 
+
               except json.JSONDecodeError as error:
 
                   print(
-                      "❌ Extracted JSON is invalid"
+                      "Extracted JSON is invalid"
                   )
 
                   print(error)
@@ -713,8 +937,9 @@ jobs:
 
 
           print("")
+
           print(
-              "✅ ai-review.json created"
+              "ai-review.json created successfully"
           )
 
 
@@ -730,11 +955,12 @@ jobs:
           PY
 
 
-      # ------------------------------------------------------
+      # ======================================================
       # Validate AI Review JSON
-      # ------------------------------------------------------
+      # ======================================================
 
       - name: Validate AI Review JSON
+
         run: |
 
           python - <<'PY'
@@ -762,9 +988,7 @@ jobs:
           )
 
 
-          print(
-              "✅ Valid JSON"
-          )
+          print("Valid JSON")
 
 
           print("")
@@ -803,24 +1027,36 @@ jobs:
           )
 
 
-          for signal in data.get(
+          signals = data.get(
               "security_signals",
               []
-          ):
+          )
+
+
+          if signals:
+
+              for signal in signals:
+
+                  print(
+                      "-",
+                      signal
+                  )
+
+          else:
 
               print(
-                  "-",
-                  signal
+                  "No security signals detected."
               )
 
           PY
 
 
-      # ------------------------------------------------------
+      # ======================================================
       # Display Final AI Review
-      # ------------------------------------------------------
+      # ======================================================
 
       - name: Display AI Review
+
         run: |
 
           echo "=========================================="
@@ -833,9 +1069,9 @@ jobs:
           cat ai-review.json
 
 
-      # ------------------------------------------------------
+      # ======================================================
       # Extract Risk Information
-      # ------------------------------------------------------
+      # ======================================================
 
       - name: Extract Risk Information
 
@@ -843,59 +1079,61 @@ jobs:
 
         run: |
 
-          RISK_LEVEL=$(python -c '
+          RISK_LEVEL=$(python -c "
 
           import json
 
-          with open("ai-review.json") as f:
+          with open('ai-review.json') as f:
 
               data = json.load(f)
 
           print(
               data.get(
-                  "risk_level",
-                  "UNKNOWN"
+                  'risk_level',
+                  'UNKNOWN'
               )
           )
 
-          ')
+          ")
 
 
-          RISK_SCORE=$(python -c '
+          RISK_SCORE=$(python -c "
 
           import json
 
-          with open("ai-review.json") as f:
+          with open('ai-review.json') as f:
 
               data = json.load(f)
 
           print(
               data.get(
-                  "risk_score",
+                  'risk_score',
                   0
               )
           )
 
-          ')
+          ")
 
 
-          DECISION=$(python -c '
+          DECISION=$(python -c "
 
           import json
 
-          with open("ai-review.json") as f:
+          with open('ai-review.json') as f:
 
               data = json.load(f)
 
           print(
               data.get(
-                  "decision",
-                  "UNKNOWN"
+                  'decision',
+                  'UNKNOWN'
               )
           )
 
-          ')
+          ")
 
+
+          echo ""
 
           echo "Risk Level: $RISK_LEVEL"
 
@@ -904,18 +1142,21 @@ jobs:
           echo "Decision: $DECISION"
 
 
+          echo ""
+
           echo "risk_level=$RISK_LEVEL" >> "$GITHUB_OUTPUT"
 
           echo "risk_score=$RISK_SCORE" >> "$GITHUB_OUTPUT"
 
-          echo "decision=$DECISION"
+          echo "decision=$DECISION" >> "$GITHUB_OUTPUT"
 
 
-      # ------------------------------------------------------
+      # ======================================================
       # Create PR Comment
-      # ------------------------------------------------------
+      # ======================================================
 
       - name: Create AI Review Report
+
         run: |
 
           python - <<'PY'
@@ -989,7 +1230,6 @@ jobs:
               "w"
           ) as f:
 
-
               f.write(
                   "# 🤖 Terraform AI Security Review\n\n"
               )
@@ -1007,17 +1247,17 @@ jobs:
 
 
               f.write(
-                  f"- ➕ Create: **{create_count}**\n"
+                  f"- Create: **{create_count}**\n"
               )
 
 
               f.write(
-                  f"- 🔄 Update: **{update_count}**\n"
+                  f"- Update: **{update_count}**\n"
               )
 
 
               f.write(
-                  f"- 🗑️ Destroy: **{destroy_count}**\n\n"
+                  f"- Destroy: **{destroy_count}**\n\n"
               )
 
 
@@ -1031,9 +1271,13 @@ jobs:
                   for signal in signals:
 
                       f.write(
-                          f"- **{signal.get('type')}** — "
-                          f"{signal.get('severity')} — "
-                          f"{signal.get('reason')}  \n"
+
+                          f"- **{signal.get('type', 'UNKNOWN')}** — "
+
+                          f"{signal.get('severity', 'UNKNOWN')} — "
+
+                          f"{signal.get('reason', 'No reason provided')}  \n"
+
                       )
 
               else:
@@ -1049,7 +1293,7 @@ jobs:
 
 
               f.write(
-                  summary
+                  str(summary)
               )
 
 
@@ -1081,9 +1325,9 @@ jobs:
           PY
 
 
-      # ------------------------------------------------------
+      # ======================================================
       # Comment on Pull Request
-      # ------------------------------------------------------
+      # ======================================================
 
       - name: Comment on Pull Request
 
@@ -1100,22 +1344,35 @@ jobs:
             --body-file pr-comment.md
 
 
-      # ------------------------------------------------------
+      # ======================================================
       # AI Security Gate
-      # ------------------------------------------------------
+      # ======================================================
 
       - name: Enforce AI Security Gate
+
         run: |
 
           RISK_LEVEL="${{ steps.risk.outputs.risk_level }}"
 
+          RISK_SCORE="${{ steps.risk.outputs.risk_score }}"
+
+          DECISION="${{ steps.risk.outputs.decision }}"
+
 
           echo "=========================================="
+
           echo "AI Security Gate"
+
           echo "=========================================="
 
 
-          echo "Risk Level: $RISK_LEVEL"
+          echo ""
+
+          echo "Risk Level : $RISK_LEVEL"
+
+          echo "Risk Score : $RISK_SCORE"
+
+          echo "Decision   : $DECISION"
 
 
           # --------------------------------------------------
@@ -1126,13 +1383,14 @@ jobs:
 
             echo ""
 
-            echo "🚨 HIGH RISK DETECTED"
+            echo "HIGH RISK DETECTED"
 
             echo ""
 
             echo "Terraform deployment blocked."
 
             echo "Manual security review required."
+
 
             exit 1
 
@@ -1147,7 +1405,7 @@ jobs:
 
             echo ""
 
-            echo "⚠️ MEDIUM RISK"
+            echo "MEDIUM RISK"
 
             echo "Review recommended."
 
@@ -1164,18 +1422,20 @@ jobs:
 
             echo ""
 
-            echo "✅ LOW RISK"
+            echo "LOW RISK"
 
             echo "Pipeline can continue."
 
           fi
 
 
-      # ------------------------------------------------------
+      # ======================================================
       # Upload AI Review
-      # ------------------------------------------------------
+      # ======================================================
 
       - name: Upload AI Review
+
+        if: always()
 
         uses: actions/upload-artifact@v4
 
@@ -1193,6 +1453,8 @@ jobs:
 
             pr-comment.md
 
+          if-no-files-found: warn
+
 
   # ==========================================================
   # Stage 4 - Terraform Apply
@@ -1207,6 +1469,7 @@ jobs:
     timeout-minutes: 30
 
     needs:
+
       - ai-review
 
 
@@ -1215,23 +1478,18 @@ jobs:
     # --------------------------------------------------------
 
     if: >
+
       github.event_name == 'push' &&
+
       github.ref == 'refs/heads/main'
 
 
     # --------------------------------------------------------
     # Production Environment Approval
-    #
-    # Configure in:
-    #
-    # Repository
-    # → Settings
-    # → Environments
-    # → production
-    # → Required reviewers
     # --------------------------------------------------------
 
     environment:
+
       name: production
 
 
@@ -1242,6 +1500,7 @@ jobs:
       # ------------------------------------------------------
 
       - name: Checkout Repository
+
         uses: actions/checkout@v4
 
 
@@ -1250,9 +1509,11 @@ jobs:
       # ------------------------------------------------------
 
       - name: Setup Terraform
+
         uses: hashicorp/setup-terraform@v3
 
         with:
+
           terraform_version: "1.15.8"
 
 
@@ -1261,9 +1522,11 @@ jobs:
       # ------------------------------------------------------
 
       - name: Azure Login
+
         uses: azure/login@v2
 
         with:
+
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
 
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -1276,6 +1539,7 @@ jobs:
       # ------------------------------------------------------
 
       - name: Terraform Init
+
         working-directory: parent_module
 
         run: |
@@ -1288,8 +1552,21 @@ jobs:
       # ------------------------------------------------------
 
       - name: Terraform Apply
+
         working-directory: parent_module
 
         run: |
 
+          echo "=========================================="
+
+          echo "Terraform Apply"
+
+          echo "=========================================="
+
+
           terraform apply -auto-approve
+
+
+          echo ""
+
+          echo "Terraform Apply completed successfully."
