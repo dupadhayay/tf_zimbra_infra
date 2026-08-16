@@ -1,0 +1,361 @@
+{
+  "terraform_analysis": {
+    "terraform_root": "./parent_module",
+    "files": [
+      {
+        "file": "child_module/azurerm_keyvalult/main.tf",
+        "modules": [],
+        "resources": [
+          {
+            "type": "azurerm_key_vault",
+            "name": "keyVault"
+          },
+          {
+            "type": "azurerm_key_vault_secret",
+            "name": "name"
+          },
+          {
+            "type": "azurerm_key_vault_secret",
+            "name": "password"
+          }
+        ],
+        "data_sources": [
+          {
+            "type": "azurerm_client_config",
+            "name": "config"
+          },
+          {
+            "type": "azurerm_key_vault",
+            "name": "keyvaultData"
+          }
+        ]
+      },
+      {
+        "file": "child_module/azurerm_keyvalult/variable.tf",
+        "modules": [],
+        "resources": [],
+        "data_sources": []
+      },
+      {
+        "file": "child_module/azurerm_public_ip/main.tf",
+        "modules": [],
+        "resources": [
+          {
+            "type": "azurerm_public_ip",
+            "name": "public_ip"
+          }
+        ],
+        "data_sources": [
+          {
+            "type": "azurerm_resource_group",
+            "name": "resourceData"
+          }
+        ]
+      },
+      {
+        "file": "child_module/azurerm_public_ip/variable.tf",
+        "modules": [],
+        "resources": [],
+        "data_sources": []
+      },
+      {
+        "file": "child_module/azurerm_resource/main.tf",
+        "modules": [],
+        "resources": [
+          {
+            "type": "azurerm_resource_group",
+            "name": "resourece"
+          }
+        ],
+        "data_sources": []
+      },
+      {
+        "file": "child_module/azurerm_resource/variable.tf",
+        "modules": [],
+        "resources": [],
+        "data_sources": []
+      },
+      {
+        "file": "child_module/azurerm_subnet/main.tf",
+        "modules": [],
+        "resources": [
+          {
+            "type": "azurerm_subnet",
+            "name": "subnet"
+          }
+        ],
+        "data_sources": []
+      },
+      {
+        "file": "child_module/azurerm_subnet/variable.tf",
+        "modules": [],
+        "resources": [],
+        "data_sources": []
+      },
+      {
+        "file": "child_module/azurerm_virtual_machine/main.tf",
+        "modules": [],
+        "resources": [
+          {
+            "type": "azurerm_network_interface",
+            "name": "NIC"
+          },
+          {
+            "type": "azurerm_linux_virtual_machine",
+            "name": "VMLinux"
+          }
+        ],
+        "data_sources": [
+          {
+            "type": "azurerm_resource_group",
+            "name": "resourceData"
+          },
+          {
+            "type": "azurerm_subnet",
+            "name": "subnetData"
+          },
+          {
+            "type": "azurerm_key_vault",
+            "name": "keyvaultDatas"
+          },
+          {
+            "type": "azurerm_key_vault_secret",
+            "name": "secretValue"
+          },
+          {
+            "type": "azurerm_key_vault_secret",
+            "name": "password"
+          },
+          {
+            "type": "azurerm_public_ip",
+            "name": "publicIp"
+          }
+        ]
+      },
+      {
+        "file": "child_module/azurerm_virtual_machine/variable.tf",
+        "modules": [],
+        "resources": [],
+        "data_sources": []
+      },
+      {
+        "file": "child_module/azurerm_virtual_network/main.tf",
+        "modules": [],
+        "resources": [
+          {
+            "type": "azurerm_virtual_network",
+            "name": "vnet"
+          }
+        ],
+        "data_sources": [
+          {
+            "type": "azurerm_resource_group",
+            "name": "resourceData"
+          }
+        ]
+      },
+      {
+        "file": "child_module/azurerm_virtual_network/variable.tf",
+        "modules": [],
+        "resources": [],
+        "data_sources": []
+      },
+      {
+        "file": "main.tf",
+        "modules": [
+          {
+            "name": "resource",
+            "source": "./child_module/azurerm_resource"
+          },
+          {
+            "name": "keyVault",
+            "source": "./child_module/azurerm_keyvalult"
+          },
+          {
+            "name": "public_ip",
+            "source": "./child_module/azurerm_public_ip"
+          },
+          {
+            "name": "vnet",
+            "source": "./child_module/azurerm_virtual_network"
+          },
+          {
+            "name": "subnet",
+            "source": "./child_module/azurerm_subnet"
+          },
+          {
+            "name": "VM",
+            "source": "./child_module/azurerm_virtual_machine"
+          }
+        ],
+        "resources": [],
+        "data_sources": []
+      },
+      {
+        "file": "provider.tf",
+        "modules": [],
+        "resources": [],
+        "data_sources": []
+      },
+      {
+        "file": "variable.tf",
+        "modules": [],
+        "resources": [],
+        "data_sources": []
+      }
+    ],
+    "modules": [
+      {
+        "file": "main.tf",
+        "name": "resource",
+        "source": "./child_module/azurerm_resource"
+      },
+      {
+        "file": "main.tf",
+        "name": "keyVault",
+        "source": "./child_module/azurerm_keyvalult"
+      },
+      {
+        "file": "main.tf",
+        "name": "public_ip",
+        "source": "./child_module/azurerm_public_ip"
+      },
+      {
+        "file": "main.tf",
+        "name": "vnet",
+        "source": "./child_module/azurerm_virtual_network"
+      },
+      {
+        "file": "main.tf",
+        "name": "subnet",
+        "source": "./child_module/azurerm_subnet"
+      },
+      {
+        "file": "main.tf",
+        "name": "VM",
+        "source": "./child_module/azurerm_virtual_machine"
+      }
+    ],
+    "resources": [
+      {
+        "file": "child_module/azurerm_keyvalult/main.tf",
+        "type": "azurerm_key_vault",
+        "name": "keyVault"
+      },
+      {
+        "file": "child_module/azurerm_keyvalult/main.tf",
+        "type": "azurerm_key_vault_secret",
+        "name": "name"
+      },
+      {
+        "file": "child_module/azurerm_keyvalult/main.tf",
+        "type": "azurerm_key_vault_secret",
+        "name": "password"
+      },
+      {
+        "file": "child_module/azurerm_public_ip/main.tf",
+        "type": "azurerm_public_ip",
+        "name": "public_ip"
+      },
+      {
+        "file": "child_module/azurerm_resource/main.tf",
+        "type": "azurerm_resource_group",
+        "name": "resourece"
+      },
+      {
+        "file": "child_module/azurerm_subnet/main.tf",
+        "type": "azurerm_subnet",
+        "name": "subnet"
+      },
+      {
+        "file": "child_module/azurerm_virtual_machine/main.tf",
+        "type": "azurerm_network_interface",
+        "name": "NIC"
+      },
+      {
+        "file": "child_module/azurerm_virtual_machine/main.tf",
+        "type": "azurerm_linux_virtual_machine",
+        "name": "VMLinux"
+      },
+      {
+        "file": "child_module/azurerm_virtual_network/main.tf",
+        "type": "azurerm_virtual_network",
+        "name": "vnet"
+      }
+    ],
+    "data_sources": [
+      {
+        "file": "child_module/azurerm_keyvalult/main.tf",
+        "type": "azurerm_client_config",
+        "name": "config"
+      },
+      {
+        "file": "child_module/azurerm_keyvalult/main.tf",
+        "type": "azurerm_key_vault",
+        "name": "keyvaultData"
+      },
+      {
+        "file": "child_module/azurerm_public_ip/main.tf",
+        "type": "azurerm_resource_group",
+        "name": "resourceData"
+      },
+      {
+        "file": "child_module/azurerm_virtual_machine/main.tf",
+        "type": "azurerm_resource_group",
+        "name": "resourceData"
+      },
+      {
+        "file": "child_module/azurerm_virtual_machine/main.tf",
+        "type": "azurerm_subnet",
+        "name": "subnetData"
+      },
+      {
+        "file": "child_module/azurerm_virtual_machine/main.tf",
+        "type": "azurerm_key_vault",
+        "name": "keyvaultDatas"
+      },
+      {
+        "file": "child_module/azurerm_virtual_machine/main.tf",
+        "type": "azurerm_key_vault_secret",
+        "name": "secretValue"
+      },
+      {
+        "file": "child_module/azurerm_virtual_machine/main.tf",
+        "type": "azurerm_key_vault_secret",
+        "name": "password"
+      },
+      {
+        "file": "child_module/azurerm_virtual_machine/main.tf",
+        "type": "azurerm_public_ip",
+        "name": "publicIp"
+      },
+      {
+        "file": "child_module/azurerm_virtual_network/main.tf",
+        "type": "azurerm_resource_group",
+        "name": "resourceData"
+      }
+    ]
+  },
+  "security_signals": [
+    {
+      "severity": "MEDIUM",
+      "signal": "KEY_VAULT",
+      "resource": {
+        "file": "child_module/azurerm_keyvalult/main.tf",
+        "type": "azurerm_key_vault",
+        "name": "keyVault"
+      },
+      "reason": "Key Vault detected. Review network access and security configuration."
+    },
+    {
+      "severity": "MEDIUM",
+      "signal": "PUBLIC_IP",
+      "resource": {
+        "file": "child_module/azurerm_public_ip/main.tf",
+        "type": "azurerm_public_ip",
+        "name": "public_ip"
+      },
+      "reason": "Azure Public IP resource detected. Review whether public exposure is required."
+    }
+  ]
+}

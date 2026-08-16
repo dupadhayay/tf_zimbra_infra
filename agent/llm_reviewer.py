@@ -1,7 +1,7 @@
 import json
 import os
 
-from openai import AzureOpenAI
+from openai import OpenAI
 
 
 # ============================================================
@@ -13,10 +13,11 @@ AZURE_OPENAI_API_KEY = os.environ["AZURE_OPENAI_API_KEY"]
 AZURE_OPENAI_DEPLOYMENT = os.environ["AZURE_OPENAI_DEPLOYMENT"]
 
 
-client = AzureOpenAI(
+
+
+client = OpenAI(
     api_key=AZURE_OPENAI_API_KEY,
-    azure_endpoint=AZURE_OPENAI_ENDPOINT,
-    api_version="2024-10-21"
+    base_url=f"{AZURE_OPENAI_ENDPOINT.rstrip('/')}/openai/v1/"
 )
 
 

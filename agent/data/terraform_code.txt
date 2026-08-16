@@ -1,0 +1,367 @@
+===== FILE: ./parent_module/main.tf =====
+module "resource" {
+  source = "./child_module/azurerm_resource"
+  rg     = var.rg
+}
+output "rg_names" {
+  value = module.resource.resource_group_names
+}
+
+# module "keyVault" {
+#   depends_on = [module.resource]
+#   source     = "./child_module/azurerm_keyvalult"
+#   keyvault   = var.keyvault
+# }
+
+module "public_ip" {
+  depends_on = [module.resource]
+  source     = "./child_module/azurerm_public_ip"
+  publicIP   = var.publicIP
+}
+
+module "vnet" {
+  depends_on = [module.resource]
+  source     = "./child_module/azurerm_virtual_network"
+  vnets      = var.vnets
+}
+
+module "subnet" {
+  depends_on  = [module.vnet, module.resource]
+  source      = "./child_module/azurerm_subnet"
+  subnetsData = var.subnetsData
+}
+
+# module "VM" {
+#   depends_on = [module.resource, module.public_ip, module.subnet, module.vnet]
+
+#   source = "./child_module/azurerm_virtual_machine"
+#   VM     = var.vms
+# }
+
+===== FILE: ./parent_module/variable.tf =====
+variable "rg" {
+  type = any
+}
+variable "publicIP" {
+  type = any
+}
+variable "vnets" {
+  type = any
+}
+variable "subnetsData" {
+  type = any
+}
+# variable "VM" {
+#   type = any
+# }
+# variable "keyvault" {}
+===== FILE: ./parent_module/provider.tf =====
+terraform {
+  required_version = "1.15.8"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "4.81.0"
+
+    }
+  }
+}
+provider "azurerm" {
+  features {}
+}
+===== FILE: ./parent_module/child_module/azurerm_virtual_machine/main.tf =====
+# data "azurerm_resource_group" "resourceData" {
+#   for_each = var.VM
+#   name     = each.value.resource_group_name
+# }
+
+# data "azurerm_subnet" "subnetData" {
+#   for_each             = var.VM
+#   name                 = each.value.subnet_name
+#   virtual_network_name = each.value.vnet_name
+#   resource_group_name  = each.value.resource_group_name
+# }
+
+# data "azurerm_key_vault" "keyvaultDatas" {
+#   name                = var.VM["VM1"].keyvaultname
+#   resource_group_name = var.VM["VM1"].resource_group_name
+# }
+
+# data "azurerm_key_vault_secret" "secretValue" {
+#   for_each     = var.VM
+#   name         = each.value.admin_username
+#   key_vault_id = data.azurerm_key_vault.keyvaultDatas.id
+# }
+
+# data "azurerm_key_vault_secret" "password" {
+#   for_each     = var.VM
+#   name         = each.value.admin_password_secret_name
+#   key_vault_id = data.azurerm_key_vault.keyvaultDatas.id
+# }
+
+
+
+# resource "azurerm_network_interface" "NIC" {
+#   for_each            = var.VM
+#   name                = each.value.name
+#   location            = data.azurerm_resource_group.resourceData[each.key].location
+#   resource_group_name = data.azurerm_resource_group.resourceData[each.key].name
+
+
+#   ip_configuration {
+#     name                          = each.value.ip_configuration.name
+#     subnet_id                     = data.azurerm_subnet.subnetData[each.key].id
+#     private_ip_address_allocation = each.value.ip_configuration.private_ip_address_allocation
+#     public_ip_address_id          = data.azurerm_public_ip.publicIp[each.key].id
+#   }
+# }
+# data "azurerm_public_ip" "publicIp" {
+#   for_each            = var.VM
+#   name                = each.value.pipname
+#   resource_group_name = each.value.resource_group_name
+# }
+
+
+# resource "azurerm_linux_virtual_machine" "VMLinux" {
+#   for_each                        = var.VM
+#   name                            = each.key
+#   resource_group_name             = each.value.resource_group_name
+#   location                        = data.azurerm_resource_group.resourceData[each.key].location
+#   size                            = each.value.size
+#   admin_username                  = data.azurerm_key_vault_secret.secretValue[each.key].value
+#   admin_password                  = data.azurerm_key_vault_secret.password[each.key].value
+#   disable_password_authentication = each.value.disable_password_authentication
+#   network_interface_ids = [
+#     azurerm_network_interface.NIC[each.key].id
+#   ]
+#   os_disk {
+#     caching              = each.value.caching
+#     storage_account_type = each.value.storage_account_type
+#   }
+
+#   source_image_reference {
+#     publisher = each.value.publisher
+#     offer     = each.value.offer
+#     sku       = each.value.sku
+#     version   = each.value.version
+#   }
+
+#   #  provisioner "remote-exec" {
+
+#   #   inline = [
+#   #     "sudo apt update",
+#   #     "sudo apt install -y nginx",
+#   #     "sudo systemctl enable nginx",
+#   #     "sudo systemctl start nginx"
+#   #   ]
+
+#   #   connection {
+#   #     type     = "ssh"
+#   #     host     = self.public_ip_address
+#   #     user     = data.azurerm_key_vault_secret.secretValue[each.key].value
+#   #     password = data.azurerm_key_vault_secret.password[each.key].value
+#   #     timeout  = "5m"
+#   #   }
+#   # }
+# }
+
+===== FILE: ./parent_module/child_module/azurerm_virtual_machine/variable.tf =====
+# variable "VM" {
+#   type = map(object({
+#     name                = string
+#     resource_group_name = string
+
+#     vnet_name   = string
+#     subnet_name = string
+
+#     ip_configuration = object({
+#       name                          = string
+#       private_ip_address_allocation = string
+#     })
+#     size                            = string
+#     admin_username                  = string
+#     admin_password_secret_name      = string
+#     disable_password_authentication = bool
+#     caching                         = string
+#     storage_account_type            = string
+#     publisher                       = string
+#     offer                           = string
+#     sku                             = string
+#     version                         = string
+#     pipname                         = string
+#     keyvaultname                    = string
+#     })
+#   )
+# }
+
+===== FILE: ./parent_module/child_module/azurerm_subnet/main.tf =====
+resource "azurerm_subnet" "subnet" {
+  for_each             = var.subnetsData
+  name                 = each.value.name
+  resource_group_name  = each.value.resource_group_name
+  virtual_network_name = each.value.virtual_network_name
+  address_prefixes     = each.value.address_prefixes
+}
+
+
+
+
+
+===== FILE: ./parent_module/child_module/azurerm_subnet/variable.tf =====
+variable "subnetsData" {
+  type = map(object({
+    resource_group_name  = string
+    virtual_network_name = string
+    address_prefixes     = list(string)
+    name                 = string
+  }))
+}
+===== FILE: ./parent_module/child_module/azurerm_public_ip/main.tf =====
+data "azurerm_resource_group" "resourceData" {
+  for_each = var.publicIP
+  name     = each.value.resource_group_name
+}
+
+
+resource "azurerm_public_ip" "public_ip" {
+  for_each            = var.publicIP
+  name                = each.value.name
+  resource_group_name = data.azurerm_resource_group.resourceData[each.key].name
+  location            = data.azurerm_resource_group.resourceData[each.key].location
+  allocation_method   = each.value.allocation_method
+}
+
+
+===== FILE: ./parent_module/child_module/azurerm_public_ip/variable.tf =====
+variable "publicIP" {
+  type = map(object({
+    name                = string
+    resource_group_name = string
+    location            = string
+    allocation_method   = string
+  }))
+}
+
+===== FILE: ./parent_module/child_module/azurerm_keyvalult/main.tf =====
+# data "azurerm_client_config" "config" {
+# }
+
+
+# resource "azurerm_key_vault" "keyVault" {
+
+#   name                       = var.keyvault.name
+#   location                   = var.keyvault.location
+#   resource_group_name        = var.keyvault.resource_group_name
+#   rbac_authorization_enabled = var.keyvault.rbac_authorization_enabled
+#   tenant_id                  = data.azurerm_client_config.config.tenant_id
+#   sku_name                   = var.keyvault.sku_name
+#   soft_delete_retention_days = var.keyvault.soft_delete_retention_days
+#   purge_protection_enabled   = true
+
+#   access_policy {
+#     tenant_id = data.azurerm_client_config.config.tenant_id
+#     object_id = data.azurerm_client_config.config.object_id
+
+#     key_permissions = [
+#       "Create",
+#       "Get",
+#     ]
+
+#     secret_permissions = [
+#       "Set",
+#       "Get",
+#       "Delete",
+#       "Purge",
+#       "Recover",
+#       "List"
+#     ]
+#   }
+#   network_acls {
+
+#     default_action = "Deny"
+
+#     bypass = "AzureServices"
+
+#   }
+# }
+
+# data "azurerm_key_vault" "keyvaultData" {
+#   name                = var.keyvault.name
+#   resource_group_name = var.keyvault.resource_group_name
+# }
+
+
+# resource "azurerm_key_vault_secret" "name" {
+#   name         = var.keyvault.admin_username
+#   value        = var.keyvault.admin_user_Name
+#   key_vault_id = data.azurerm_key_vault.keyvaultData.id
+# }
+
+# resource "azurerm_key_vault_secret" "password" {
+#   name         = var.keyvault.admin_password_name
+#   value        = var.keyvault.admin_password
+#   key_vault_id = data.azurerm_key_vault.keyvaultData.id
+# }
+
+
+===== FILE: ./parent_module/child_module/azurerm_keyvalult/variable.tf =====
+# variable "keyvault" {
+#   type = object({
+#     name                       = string
+#     location                   = string
+#     resource_group_name        = string
+#     rbac_authorization_enabled = bool
+#     sku_name                   = string
+#     soft_delete_retention_days = number
+
+#   })
+# }
+
+===== FILE: ./parent_module/child_module/azurerm_resource/main.tf =====
+resource "azurerm_resource_group" "resourece" {
+  for_each = var.rg
+  name     = each.value.resource_group_name
+  location = each.value.location
+}
+
+output "resource_group_names" {
+  description = "Resource Group Names"
+
+  value = {
+    for key, rg in azurerm_resource_group.resourece :
+    key => rg.name
+  }
+}
+===== FILE: ./parent_module/child_module/azurerm_resource/variable.tf =====
+variable "rg" {
+  type = map(object({
+    resource_group_name = string
+    location            = string
+  }))
+}
+
+===== FILE: ./parent_module/child_module/azurerm_virtual_network/main.tf =====
+data "azurerm_resource_group" "resourceData" {
+  for_each = var.vnets
+  name     = each.value.resource_group_name
+}
+
+
+resource "azurerm_virtual_network" "vnet" {
+  for_each = var.vnets
+
+  name                = each.value.name
+  address_space       = each.value.address_space
+  location            = data.azurerm_resource_group.resourceData[each.key].location
+  resource_group_name = data.azurerm_resource_group.resourceData[each.key].name
+}
+
+===== FILE: ./parent_module/child_module/azurerm_virtual_network/variable.tf =====
+variable "vnets" {
+  type = map(object({
+    name                = string
+    address_space       = list(string)
+    resource_group_name = string
+  }))
+}
+
