@@ -1,11 +1,11 @@
 data "azurerm_resource_group" "resourceData" {
-  for_each = var.dataVnet
-  name = each.value.resource_group_name 
+  for_each = var.vnets
+  name     = each.value.resource_group_name
 }
 
 
 resource "azurerm_virtual_network" "vnet" {
-  for_each = var.dataVnet
+  for_each = var.vnets
 
   name                = each.value.name
   address_space       = each.value.address_space

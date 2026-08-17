@@ -9,7 +9,7 @@ vnets = {
     address_space       = ["10.1.0.0/16"]
     resource_group_name = "rg_dhundu"
   }
-   vn3 = {
+  vn3 = {
     name                = "DB-vnet"
     address_space       = ["10.2.0.0/16"]
     resource_group_name = "rg_rondu"
@@ -17,91 +17,91 @@ vnets = {
 }
 
 
-vms = {
-  VM1 = {
-    name                = "nic_card1"
-    resource_group_name = "rg_deepak"
-    vnet_name           = "frontend-vnet"
-    subnet_name         = "frontend-subnet"
-    ip_configuration = {
-      name                          = "internal"
-      private_ip_address_allocation = "Dynamic"
-    }
-    vmname                          = "adminvm2"
-    caching                         = "ReadWrite"
-    storage_account_type            = "Standard_LRS"
-    publisher                       = "Canonical"
-    offer                           = "ubuntu-24_04-lts"
-    sku                             = "server"
-    version                         = "latest"
-    disable_password_authentication = false
+# VM = {
+#   VM1 = {
+#     name                = "nic_card1"
+#     resource_group_name = "rg_deepak"
+#     vnet_name           = "frontend-vnet"
+#     subnet_name         = "frontend-subnet"
+#     ip_configuration = {
+#       name                          = "internal"
+#       private_ip_address_allocation = "Dynamic"
+#     }
+#     vmname                          = "adminvm2"
+#     caching                         = "ReadWrite"
+#     storage_account_type            = "Standard_LRS"
+#     publisher                       = "Canonical"
+#     offer                           = "ubuntu-24_04-lts"
+#     sku                             = "server"
+#     version                         = "latest"
+#     disable_password_authentication = false
 
-    size = "Standard_D2s_v3"
-    admin_username = "adminusername"
-    admin_password_secret_name = "adminpassword"
-    pipname      = "public-ip1"
-    keyvaultname = "KeyvaultVMPassword"
-
-
-
-  }
-  VM2 = {
-    name                = "nic_card2"
-    resource_group_name = "rg_dhundu"
-    vnet_name           = "backend-vnet"
-    subnet_name         = "backend-subnet"
-    ip_configuration = {
-      name                          = "internal"
-      private_ip_address_allocation = "Dynamic"
-    }
-    vmname               = "adminvm1"
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-
-    publisher = "Canonical"
-    offer     = "ubuntu-24_04-lts"
-    sku       = "server"
-    version   = "latest"
-
-    size = "Standard_D2s_v3"
-    admin_username = "adminusername"
-    admin_password_secret_name = "adminpassword"
-    disable_password_authentication = false
-    pipname                         = "public-ip2"
-    keyvaultname                    = "KeyvaultVMPassword"
+#     size                       = "Standard_D2s_v3"
+#     admin_username             = "adminusername"
+#     admin_password_secret_name = "adminpassword"
+#     pipname                    = "public-ip1"
+#     keyvaultname               = "KeyvaultVMPassword"
 
 
-  }
-  VM3 = {
-    name                = "nic_card3"
-    resource_group_name = "rg_rondu"
-    vnet_name           = "DB-vnet"
-    subnet_name         = "DB-subnet"
-    ip_configuration = {
-      name                          = "internal"
-      private_ip_address_allocation = "Dynamic"
-    }
-    vmname               = "adminvm1"
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
 
-    publisher = "Canonical"
-    offer     = "ubuntu-24_04-lts"
-    sku       = "server"
-    version   = "latest"
+#   }
+#   VM2 = {
+#     name                = "nic_card2"
+#     resource_group_name = "rg_dhundu"
+#     vnet_name           = "backend-vnet"
+#     subnet_name         = "backend-subnet"
+#     ip_configuration = {
+#       name                          = "internal"
+#       private_ip_address_allocation = "Dynamic"
+#     }
+#     vmname               = "adminvm1"
+#     caching              = "ReadWrite"
+#     storage_account_type = "Standard_LRS"
 
-    size = "Standard_D2s_v3"
-    admin_username = "adminusername"
-    admin_password_secret_name = "adminpassword"
-    disable_password_authentication = false
-    pipname                         = "public-ip3"
-    keyvaultname                    = "KeyvaultVMPassword"
+#     publisher = "Canonical"
+#     offer     = "ubuntu-24_04-lts"
+#     sku       = "server"
+#     version   = "latest"
+
+#     size                            = "Standard_D2s_v3"
+#     admin_username                  = "adminusername"
+#     admin_password_secret_name      = "adminpassword"
+#     disable_password_authentication = false
+#     pipname                         = "public-ip2"
+#     keyvaultname                    = "KeyvaultVMPassword"
 
 
-  }
-}
+#   }
+#   VM3 = {
+#     name                = "nic_card3"
+#     resource_group_name = "rg_rondu"
+#     vnet_name           = "DB-vnet"
+#     subnet_name         = "DB-subnet"
+#     ip_configuration = {
+#       name                          = "internal"
+#       private_ip_address_allocation = "Dynamic"
+#     }
+#     vmname               = "adminvm1"
+#     caching              = "ReadWrite"
+#     storage_account_type = "Standard_LRS"
 
-subnets = {
+#     publisher = "Canonical"
+#     offer     = "ubuntu-24_04-lts"
+#     sku       = "server"
+#     version   = "latest"
+
+#     size                            = "Standard_D2s_v3"
+#     admin_username                  = "adminusername"
+#     admin_password_secret_name      = "adminpassword"
+#     disable_password_authentication = false
+#     pipname                         = "public-ip3"
+#     keyvaultname                    = "KeyvaultVMPassword"
+
+
+#   }
+# }
+
+subnetsData = {
   subnet1 = {
     resource_group_name  = "rg_deepak"
     virtual_network_name = "frontend-vnet"
@@ -115,7 +115,7 @@ subnets = {
     address_prefixes     = ["10.1.1.0/24"]
     name                 = "backend-subnet"
   }
-   subnet3 = {
+  subnet3 = {
     resource_group_name  = "rg_rondu"
     virtual_network_name = "DB-vnet"
     address_prefixes     = ["10.2.1.0/24"]
@@ -123,7 +123,7 @@ subnets = {
   }
 }
 
-rgs = {
+rg = {
   rg1 = {
     resource_group_name = "rg_deepak"
     location            = "Central India"
@@ -133,14 +133,19 @@ rgs = {
     location            = "Central India"
 
   }
-   rg3= {
+  rg3 = {
+    resource_group_name = "rg_rondu"
+    location            = "Central India"
+
+  }
+  rg4 = {
     resource_group_name = "rg_rondu"
     location            = "Central India"
 
   }
 }
 
-publicIPs = {
+publicIP = {
   publicIP1 = {
     name                = "public-ip1"
     resource_group_name = "rg_deepak"
@@ -154,7 +159,7 @@ publicIPs = {
     allocation_method   = "Static"
 
   }
-    PublicIP3 = {
+  PublicIP3 = {
     name                = "public-ip3"
     resource_group_name = "rg_rondu"
     location            = "Central India"
@@ -163,12 +168,12 @@ publicIPs = {
   }
 }
 
-keyvault = {
-  name                       = "KeyvaultVMPassword"
-  location                   = "Central India"
-  resource_group_name        = "rg_deepak"
-  rbac_authorization_enabled = false
-  sku_name                   = "premium"
-  soft_delete_retention_days = 7
-   
-}
+# keyvault = {
+#   name                       = "KeyvaultVMPassword"
+#   location                   = "Central India"
+#   resource_group_name        = "rg_deepak"
+#   rbac_authorization_enabled = false
+#   sku_name                   = "premium"
+#   soft_delete_retention_days = 7
+
+# }

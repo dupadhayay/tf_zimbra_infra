@@ -1,0 +1,105 @@
+import re
+
+
+class TerraformConsistencyAnalyzer:
+
+    def __init__(self, code_context, plan_context):
+        self.code_context = code_context
+        self.plan_context = plan_context
+
+    def get_code_resource_types(self):
+        resources = (
+            self.code_context
+            .get("terraform_analysis", {})
+            .get("resources", [])
+        )
+
+        return {
+            resource["type"]
+            for resource in resources
+        }
+
+    def get_code_modules(self):
+        modules = (
+            self.code_context
+            .get("terraform_analysis", {})
+            .get("modules", [])
+        )
+
+        return {
+            module["name"]
+            for module in modules
+        }
+
+    def analyze(self):
+
+        code_resource_types = self.get_code_resource_types()
+        code_modules = self.get_code_modules()
+
+        all_changes = (
+            self.plan_context.get("creates", [])
+            + self.plan_context.get("updates", [])
+            + self.plan_context.get("deletes", [])
+            + self.plan_context.get("replaces", [])
+        )
+
+        plan_resources = []
+
+        for resource in all_changes:
+
+            address = resource.get("address", "")
+            resource_type = resource.get("type")
+
+            module_match = re.match(
+                r"module\.([^.]+)",
+                address
+            )
+
+            module_name = (
+                module_match.group(1)
+                if module_match
+                else None
+            )
+
+            issue = None
+
+            if (
+                module_name
+                and module_name not in code_modules
+            ):
+                issue = (
+                    f"Plan references module "
+                    f"'{module_name}', but this module "
+                    f"was not detected in the current "
+                    f"Terraform source."
+                )
+
+            elif (
+                resource_type
+                and resource_type not in code_resource_types
+            ):
+                issue = (
+                    f"Plan contains resource type "
+                    f"'{resource_type}', but this "
+                    f"resource type was not detected "
+                    f"in the current Terraform source."
+                )
+
+            plan_resources.append({
+                "address": address,
+                "type": resource_type,
+                "module": module_name,
+                "issue": issue
+            })
+
+        inconsistencies = [
+            resource
+            for resource in plan_resources
+            if resource["issue"]
+        ]
+
+        return {
+            "total_plan_resources": len(plan_resources),
+            "inconsistency_count": len(inconsistencies),
+            "inconsistencies": inconsistencies
+        }
