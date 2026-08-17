@@ -18,7 +18,7 @@ permissions:
   pull-requests: write
 
 env:
-  TF_VERSION: "1.15.8"
+  TF_VERSION: "1.10.5"
   PYTHON_VERSION: "3.11"
 
 # ============================================================
@@ -35,8 +35,16 @@ jobs:
 
     steps:
 
+      # ------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------
+
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      # ------------------------------------------------------
+      # Terraform
+      # ------------------------------------------------------
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -46,12 +54,24 @@ jobs:
       - name: Terraform Version
         run: terraform version
 
+      # ------------------------------------------------------
+      # Terraform Format
+      # ------------------------------------------------------
+
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
+
+      # ------------------------------------------------------
+      # Terraform Init
+      # ------------------------------------------------------
 
       - name: Terraform Init
         working-directory: parent_module
         run: terraform init
+
+      # ------------------------------------------------------
+      # Terraform Validate
+      # ------------------------------------------------------
 
       - name: Terraform Validate
         working-directory: parent_module
@@ -132,8 +152,16 @@ jobs:
 
     steps:
 
+      # ------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------
+
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      # ------------------------------------------------------
+      # Terraform
+      # ------------------------------------------------------
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -143,9 +171,9 @@ jobs:
       - name: Terraform Version
         run: terraform version
 
-      # ------------------------------------------------------
-      # Azure Login
-      # ------------------------------------------------------
+      # ======================================================
+      # AZURE LOGIN
+      # ======================================================
 
       - name: Azure Login
         uses: azure/login@v2
@@ -154,6 +182,10 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           environment: AzureCloud
+
+      # ------------------------------------------------------
+      # Verify Azure Login
+      # ------------------------------------------------------
 
       - name: Verify Azure Login
         shell: bash
@@ -169,25 +201,41 @@ jobs:
             --output json
 
           echo ""
+          echo "Azure CLI:"
+          az version --output table
+
+          echo ""
           echo "Azure authentication successful."
 
       # ------------------------------------------------------
-      # Terraform
+      # Terraform Init
       # ------------------------------------------------------
 
       - name: Terraform Init
         working-directory: parent_module
         run: terraform init
 
+      # ------------------------------------------------------
+      # Terraform Plan
+      # ------------------------------------------------------
+
       - name: Terraform Plan
         working-directory: parent_module
         run: |
           terraform plan -out=tfplan
 
+      # ------------------------------------------------------
+      # Terraform JSON
+      # ------------------------------------------------------
+
       - name: Terraform Show JSON
         working-directory: parent_module
         run: |
           terraform show -json tfplan > tfplan.json
+
+      # ------------------------------------------------------
+      # Verify Plan
+      # ------------------------------------------------------
 
       - name: Verify Terraform Plan
         run: |
@@ -205,6 +253,10 @@ jobs:
 
           echo ""
           echo "Terraform plan generated successfully."
+
+      # ------------------------------------------------------
+      # Upload Plan
+      # ------------------------------------------------------
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
@@ -229,6 +281,10 @@ jobs:
 
     steps:
 
+      # ------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -240,6 +296,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
+      # ------------------------------------------------------
+      # Python Dependencies
+      # ------------------------------------------------------
 
       - name: Install Python Dependencies
         run: |
@@ -256,6 +316,10 @@ jobs:
           name: terraform-plan
           path: parent_module
 
+      # ------------------------------------------------------
+      # Verify Terraform Plan
+      # ------------------------------------------------------
+
       - name: Verify Terraform Plan
         run: |
           set -e
@@ -270,7 +334,7 @@ jobs:
           test -f parent_module/tfplan.json
 
       # ------------------------------------------------------
-      # Verify Agent
+      # Verify AI Agent
       # ------------------------------------------------------
 
       - name: Verify AI Agent
@@ -284,12 +348,11 @@ jobs:
           ls -lh agent/
 
           test -f agent/agent.py
-          test -f agent/llm_reviewer.py
 
           python --version
 
       # ------------------------------------------------------
-      # Verify Packages
+      # Verify Python Packages
       # ------------------------------------------------------
 
       - name: Verify Python Packages
@@ -306,9 +369,14 @@ jobs:
           print("azure.search.documents.indexes import OK")
           PY
 
-      # ------------------------------------------------------
-      # Azure Login
-      # ------------------------------------------------------
+      # ======================================================
+      # AZURE LOGIN
+      #
+      # IMPORTANT:
+      # Every GitHub Actions job runs on a new runner.
+      # Therefore Azure login from the PLAN job does NOT
+      # carry over to this AI REVIEW job.
+      # ======================================================
 
       - name: Azure Login
         uses: azure/login@v2
@@ -318,13 +386,17 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           environment: AzureCloud
 
+      # ======================================================
+      # DIAGNOSTIC 1 - AZURE SUBSCRIPTION
+      # ======================================================
+
       - name: Diagnostic 1 - Azure Subscription
         shell: bash
         run: |
           set -e
 
           echo "=========================================="
-          echo "DIAGNOSTIC 1 - AZURE SUBSCRIPTION"
+          echo "DIAGNOSTIC 1 - Azure Subscription"
           echo "=========================================="
 
           az account show \
@@ -383,7 +455,6 @@ jobs:
             exit 1
           }
 
-          echo ""
           echo "All Azure secrets are present."
 
       # ======================================================
@@ -399,8 +470,8 @@ jobs:
           import os
           from urllib.parse import urlparse
 
-          endpoint = os.environ["AZURE_SEARCH_ENDPOINT"].strip()
-          index_name = os.environ["AZURE_SEARCH_INDEX"].strip()
+          endpoint = os.environ["AZURE_SEARCH_ENDPOINT"]
+          index_name = os.environ["AZURE_SEARCH_INDEX"]
 
           print("==========================================")
           print("AZURE SEARCH ENDPOINT")
@@ -437,7 +508,7 @@ jobs:
           if parsed.path not in ("", "/"):
               raise SystemExit(
                   "ERROR: Search endpoint contains a path. "
-                  "Use https://<service-name>.search.windows.net"
+                  "Use https://<service>.search.windows.net"
               )
 
           print("")
@@ -501,9 +572,9 @@ jobs:
           )
           from azure.search.documents.indexes import SearchIndexClient
 
-          endpoint = os.environ["AZURE_SEARCH_ENDPOINT"].strip()
-          api_key = os.environ["AZURE_SEARCH_API_KEY"].strip()
-          expected = os.environ["AZURE_SEARCH_INDEX"].strip()
+          endpoint = os.environ["AZURE_SEARCH_ENDPOINT"]
+          api_key = os.environ["AZURE_SEARCH_API_KEY"]
+          expected = os.environ["AZURE_SEARCH_INDEX"]
 
           print("==========================================")
           print("AZURE SEARCH INDEX DIAGNOSTIC")
@@ -511,6 +582,7 @@ jobs:
 
           print("Endpoint:", endpoint)
           print("Expected index:", expected)
+          print("")
 
           client = SearchIndexClient(
               endpoint=endpoint,
@@ -520,11 +592,9 @@ jobs:
           try:
               indexes = list(client.list_indexes())
 
-              print("")
               print(
                   "Azure Search service responded successfully."
               )
-
               print("")
               print("Available indexes:")
 
@@ -607,9 +677,9 @@ jobs:
           )
           from azure.search.documents.indexes import SearchIndexClient
 
-          endpoint = os.environ["AZURE_SEARCH_ENDPOINT"].strip()
-          api_key = os.environ["AZURE_SEARCH_API_KEY"].strip()
-          index_name = os.environ["AZURE_SEARCH_INDEX"].strip()
+          endpoint = os.environ["AZURE_SEARCH_ENDPOINT"]
+          api_key = os.environ["AZURE_SEARCH_API_KEY"]
+          index_name = os.environ["AZURE_SEARCH_INDEX"]
 
           client = SearchIndexClient(
               endpoint=endpoint,
@@ -682,9 +752,9 @@ jobs:
           )
           from azure.search.documents import SearchClient
 
-          endpoint = os.environ["AZURE_SEARCH_ENDPOINT"].strip()
-          api_key = os.environ["AZURE_SEARCH_API_KEY"].strip()
-          index_name = os.environ["AZURE_SEARCH_INDEX"].strip()
+          endpoint = os.environ["AZURE_SEARCH_ENDPOINT"]
+          api_key = os.environ["AZURE_SEARCH_API_KEY"]
+          index_name = os.environ["AZURE_SEARCH_INDEX"]
 
           client = SearchClient(
               endpoint=endpoint,
@@ -762,8 +832,8 @@ jobs:
           import os
           from urllib.parse import urlparse
 
-          endpoint = os.environ["AZURE_OPENAI_ENDPOINT"].strip()
-          deployment = os.environ["AZURE_OPENAI_DEPLOYMENT"].strip()
+          endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
+          deployment = os.environ["AZURE_OPENAI_DEPLOYMENT"]
 
           parsed = urlparse(endpoint)
 
@@ -773,9 +843,7 @@ jobs:
 
           print("Endpoint:", endpoint)
           print("Deployment:", deployment)
-          print("API mode: Azure OpenAI v1")
           print("")
-
           print("Scheme:", parsed.scheme)
           print("Host:", parsed.hostname)
           print("Path:", parsed.path)
@@ -796,14 +864,6 @@ jobs:
                   "in AZURE_OPENAI_ENDPOINT"
               )
 
-          if any(
-              char.isspace()
-              for char in endpoint
-          ):
-              raise SystemExit(
-                  "ERROR: AZURE_OPENAI_ENDPOINT contains whitespace/newline"
-              )
-
           print("")
           print("Endpoint format looks valid.")
           PY
@@ -822,8 +882,6 @@ jobs:
           echo "AZURE OPENAI HTTP TEST"
           echo "=========================================="
 
-          ENDPOINT="$(printf '%s' "$AZURE_OPENAI_ENDPOINT" | tr -d '\r\n' | xargs)"
-
           curl \
             --silent \
             --show-error \
@@ -832,7 +890,7 @@ jobs:
             --connect-timeout 10 \
             -o /tmp/openai-response.txt \
             -w "HTTP_STATUS=%{http_code}\nREMOTE_IP=%{remote_ip}\nTIME_TOTAL=%{time_total}\n" \
-            "$ENDPOINT"
+            "$AZURE_OPENAI_ENDPOINT"
 
           CURL_EXIT=$?
 
@@ -847,14 +905,6 @@ jobs:
 
       # ======================================================
       # DIAGNOSTIC 9 - OPENAI API
-      #
-      # IMPORTANT:
-      # GPT-5.4 deployment is being called through the
-      # Azure OpenAI v1 endpoint.
-      #
-      # DO NOT use:
-      # AzureOpenAI(api_version="2024-10-21")
-      #
       # ======================================================
 
       - name: Diagnostic 9 - Azure OpenAI API
@@ -867,7 +917,7 @@ jobs:
           python - <<'PY'
           import os
 
-          from openai import OpenAI
+          from openai import AzureOpenAI
           from openai import APIStatusError
           from openai import APIConnectionError
 
@@ -875,27 +925,16 @@ jobs:
           api_key = os.environ["AZURE_OPENAI_API_KEY"]
           deployment = os.environ["AZURE_OPENAI_DEPLOYMENT"]
 
-          endpoint = endpoint.strip()
-          api_key = api_key.strip()
-          deployment = deployment.strip()
-
           print("==========================================")
           print("AZURE OPENAI API TEST")
           print("==========================================")
 
           print("Deployment:", deployment)
-          print("API Mode: Azure OpenAI v1")
-          print("API Version: 2026-03-05")
-          print("")
 
-          # IMPORTANT:
-          # Use the OpenAI client with Azure OpenAI v1 endpoint.
-          #
-          # This avoids the old AzureOpenAI API-version flow.
-
-          client = OpenAI(
+          client = AzureOpenAI(
+              azure_endpoint=endpoint,
               api_key=api_key,
-              base_url=f"{endpoint.rstrip('/')}/openai/v1/"
+              api_version="2024-10-21",
           )
 
           try:
@@ -904,10 +943,11 @@ jobs:
                   messages=[
                       {
                           "role": "user",
-                          "content": "Reply with exactly OK"
+                          "content": "Reply with exactly OK",
                       }
                   ],
-                  max_completion_tokens=10,
+                  max_tokens=5,
+                  temperature=0,
                   timeout=30,
               )
 
@@ -928,15 +968,13 @@ jobs:
               print("")
               print("HTTP Status:", error.status_code)
               print("Error:", error)
-
               print("")
               print("Check:")
-              print("1. AZURE_OPENAI_ENDPOINT")
-              print("2. AZURE_OPENAI_API_KEY")
-              print("3. AZURE_OPENAI_DEPLOYMENT")
-              print("4. GPT-5.4 deployment")
-              print("5. Azure OpenAI v1 endpoint")
-
+              print("1. Deployment name")
+              print("2. Endpoint")
+              print("3. API key")
+              print("4. API version")
+              print("5. Model deployment")
               raise
 
           except APIConnectionError as error:
@@ -1380,6 +1418,7 @@ jobs:
     needs:
       - ai-review
 
+    # Apply ONLY after merge/push to main
     if: >
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main'
@@ -1389,8 +1428,16 @@ jobs:
 
     steps:
 
+      # ------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------
+
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      # ------------------------------------------------------
+      # Terraform
+      # ------------------------------------------------------
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -1400,9 +1447,9 @@ jobs:
       - name: Terraform Version
         run: terraform version
 
-      # ------------------------------------------------------
-      # Azure Login
-      # ------------------------------------------------------
+      # ======================================================
+      # AZURE LOGIN
+      # ======================================================
 
       - name: Azure Login
         uses: azure/login@v2
@@ -1411,6 +1458,10 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           environment: AzureCloud
+
+      # ------------------------------------------------------
+      # Verify Azure Login
+      # ------------------------------------------------------
 
       - name: Verify Azure Login
         shell: bash
@@ -1429,7 +1480,7 @@ jobs:
           echo "Azure authentication successful."
 
       # ------------------------------------------------------
-      # Download Reviewed Plan
+      # Download Reviewed Terraform Plan
       # ------------------------------------------------------
 
       - name: Download Reviewed Terraform Plan
@@ -1437,6 +1488,10 @@ jobs:
         with:
           name: terraform-plan
           path: parent_module
+
+      # ------------------------------------------------------
+      # Verify Plan
+      # ------------------------------------------------------
 
       - name: Verify Terraform Plan
         run: |

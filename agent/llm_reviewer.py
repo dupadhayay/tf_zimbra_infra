@@ -247,4 +247,3 @@ HIGH
         raise RuntimeError(
             f"Azure OpenAI returned invalid JSON: {error}"
         ) from error
-````
